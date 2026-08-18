@@ -1,113 +1,172 @@
 from django.db import models
-from django.core.validators import MinValueValidator
+from django.contrib.auth.models import User
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
-class Supermercado(models.Model):
-    ano_fundacion = models.IntegerField()
-    cant_sucursales = models.IntegerField()
-    pais = models.CharField(max_length=100)
 
-    def __str__(self):
-        return f"Supermercado {self.pais}"
-
-class Sucursal(models.Model):
-    supermercado = models.ForeignKey(Supermercado, on_delete=models.CASCADE, related_name='sucursales')
-    nombre = models.CharField(max_length=150, default="Sin Nombre")
-    domicilio = models.CharField(max_length=200, default="Sin Domicilio")
-    localidad = models.CharField(max_length=150)
-    id_sucursal = models.IntegerField(unique=True)
-
-    def __str__(self):
-        return f"{self.nombre} - {self.domicilio} ({self.id_sucursal})"
-
-class Jefe(models.Model):
-    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE, related_name='jefes')
-    edad = models.IntegerField()
-    anos_servicio = models.IntegerField()
-    dni = models.IntegerField(unique=True)
-
-    def __str__(self):
-        return f"Jefe DNI: {self.dni}"
-
-class Empleado(models.Model):
-    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE, related_name='empleados')
-    nombre = models.CharField(max_length=150, default="Sin Nombre")
-    sexo = models.CharField(max_length=10, default="hombre") 
-    edad = models.IntegerField()
-    anos_servicio = models.IntegerField()
-    dni = models.IntegerField(unique=True)
-    id_empleado = models.IntegerField(unique=True)
-    sueldo = models.FloatField()
-
-    def __str__(self):
-        return f"{self.nombre} (ID: {self.id_empleado})"
-
-class Pasillo(models.Model):
-    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE, related_name='pasillos')
-    id_pasillo = models.IntegerField(unique=True)
-
-    def __str__(self):
-        return f"Pasillo {self.id_pasillo}"
-
-class Producto(models.Model):
-    pasillo = models.ForeignKey('Pasillo', on_delete=models.SET_NULL, null=True, blank=True, related_name='productos')
-    id_producto = models.IntegerField()
-    sucursal_id = models.IntegerField(default=1) 
-    nombre = models.CharField(max_length=150)
-    empresa = models.CharField(max_length=150)
-    peso = models.FloatField(validators=[MinValueValidator(0.0)])
-    stock = models.IntegerField(validators=[MinValueValidator(1)])
-    categoria = models.CharField(max_length=100)
-    costo = models.FloatField()
-    imagen = models.ImageField(upload_to='productos/', null=True, blank=True)
-
-    # Conservamos solo el campo estructural para poder armar los combos
-    combo_padre = models.ForeignKey(
-        'self', 
-        on_delete=models.CASCADE, 
-        null=True, 
-        blank=True, 
-        related_name='subproductos'
+class UserProfile(models.Model):
+    """
+    Datos del perfil de usuario para cabeceras de chat, estado (#dot)
+    y llaves para cifrado/suscripciones.
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
+    status_text = models.CharField(
+        max_length=100, 
+        default="En línea", 
+        help_text="Texto corto de estado para #chSub"
     )
+    is_online = models.BooleanField(default=False, help_text="Estado del indicador #dot")
+    pub_key = models.TextField(blank=True, null=True, help_text="Llave pública para cifrado P2P/MQTT")
+
+    def __str__(self):
+        return f"Perfil de {self.user.username}"
+
+
+class Contact(models.Model):
+    """
+    Soporta la ventana modal #mContact (Nuevo contacto).
+    Guarda nombre/alias y teléfono con código de país (#cNum).
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='contacts_owner')
+    contact = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='contacts_added',
+        null=True, 
+        blank=True,
+        help_text="Usuario registrado asociado en la plataforma"
+    )
+    name = models.CharField(max_length=100, help_text="Nombre local asignado por el usuario (#cName)")
+    phone_number = models.CharField(max_length=20, help_text="Número con código de país (#cNum)")
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('id_producto', 'sucursal_id') 
+        ordering = ['name']
 
     def __str__(self):
-        return f"{self.nombre} (Sucursal: {self.sucursal_id})"
+        return f"{self.name} ({self.phone_number}) - Contacto de {self.user.username}"
 
 
-class Cliente(models.Model):
-    nombre = models.CharField(max_length=150, default="Sin Nombre")
-    sexo = models.CharField(max_length=10, default="hombre") 
-    edad = models.IntegerField()
-    dni = models.IntegerField(unique=True)
-    id_cliente = models.IntegerField(unique=True)
-    dinero = models.FloatField()
+class Conversation(models.Model):
+    """
+    Soporta chats individuales y la ventana modal #mGroup (Nuevo grupo).
+    """
+    name = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True, 
+        help_text="Nombre del grupo (#gName) en caso de ser chat grupal"
+    )
+    is_group = models.BooleanField(default=False)
+    participants = models.ManyToManyField(
+        User, 
+        related_name='conversations',
+        help_text="Miembros seleccionados (#gPick)"
+    )
+    created_by = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        related_name='created_groups'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+
+    def get_last_message(self):
+        """Devuelve el último mensaje para renderizar en la lista del home."""
+        return self.messages.order_by('-timestamp').first()
+
+    def unread_count_for_user(self, user):
+        """Mide los mensajes no leídos para un participante."""
+        return self.messages.filter(is_read=False).exclude(sender=user).count()
 
     def __str__(self):
-        return self.nombre
+        if self.is_group:
+            return f"Grupo: {self.name or 'Sin Nombre'} (ID: {self.id})"
+        return f"Conversación {self.id}"
 
 
-class Venta(models.Model):
-    METODOS_PAGO_CHOICES = [
-        ('contado', 'Al contado'),
-        ('efectivo', 'Efectivo'),  # 👈 Incluido aquí para que sea una opción válida
-        ('tarjeta_credito', 'Con tarjeta de crédito'),
-        ('tarjeta_debito', 'Con tarjeta de débito'),
-        ('pago_internet', 'Pago vía Internet'),
-        ('transferencia', 'Transferencia bancaria'),
+class Message(models.Model):
+    """
+    Almacena mensajes de texto o de voz para chats individuales o de grupo.
+    """
+    MESSAGE_TYPES = (
+        ('text', 'Texto'),
+        ('audio', 'Mensaje de Voz'),
+    )
+
+    conversation = models.ForeignKey(
+        Conversation, 
+        on_delete=models.CASCADE, 
+        related_name='messages'
+    )
+    sender = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='sent_messages'
+    )
+    content = models.TextField(blank=True, null=True, help_text="Texto o payload cifrado")
+    audio_file = models.FileField(upload_to='chat_audio/', blank=True, null=True)
+    msg_type = models.CharField(max_length=10, choices=MESSAGE_TYPES, default='text')
+    timestamp = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['timestamp']
+
+    def __str__(self):
+        return f"Mensaje de {self.sender.username} ({self.timestamp.strftime('%H:%M')})"
+
+
+class Llamada(models.Model):
+    """
+    Soporta llamadas de voz/video y la ventana modal #mInvite (Sumar a la llamada).
+    """
+    TIPO_CHOICES = [
+        ('VO', 'Voz'),
+        ('VI', 'Video'),
     ]
 
-    id_venta = models.IntegerField(unique=True)
-    fecha = models.DateField()
-    cant_cuotas = models.IntegerField()
-    cantidad = models.IntegerField(default=1) 
-    metodo_pago = models.CharField(max_length=30, choices=METODOS_PAGO_CHOICES, default='contado')
-    producto = models.ForeignKey(Producto, on_delete=models.PROTECT)
-    empleado = models.ForeignKey('Empleado', on_delete=models.PROTECT)
-    cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT)
+    ESTADOS_CHOICES = [
+        ('PE', 'Pendiente'),
+        ('CO', 'Contestada'),
+        ('RE', 'Rechazada'),
+        ('FI', 'Finalizada'),
+    ]
+
+    emisor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='llamadas_iniciadas')
+    receptor_principal = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='llamadas_recibidas',
+        null=True,
+        blank=True
+    )
+    # Permite invitar a múltiples participantes desde #mInvite (#iPick)
+    invitados = models.ManyToManyField(User, related_name='llamadas_invitadas', blank=True)
+    tipo = models.CharField(max_length=2, choices=TIPO_CHOICES, default='VO')
+    estado = models.CharField(max_length=2, choices=ESTADOS_CHOICES, default='PE')
+    fecha_inicio = models.DateTimeField(auto_now_add=True)
+    duracion_segundos = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['-fecha_inicio']
 
     def __str__(self):
-        return f"Venta {self.id_venta} - {self.fecha}"
-    
-    # ❌ SE ELIMINARON LOS MÉTODOS clean() Y save() DE AQUÍ
+        return f"Llamada ({self.get_tipo_display()}) de {self.emisor.username} - Estado: {self.get_estado_display()}"
+
+
+# ==========================================
+# SIGNALS (Perfil automático)
+# ==========================================
+
+@receiver(post_save, sender=User)
+def create_or_update_user_profile(sender, instance, created, **kwargs):
+    if created:
+        UserProfile.objects.create(user=instance)
+    else:
+        instance.profile.save()
