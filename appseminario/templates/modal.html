@@ -1,0 +1,48 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Starssenger{% endblock %}</title>
+
+    <!-- CSS principal -->
+    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=123">
+
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+
+<!-- MODAL: add contact -->
+<div id="mContact" class="modal"><div class="card">
+  <h3>Nuevo contacto</h3>
+  <label>Nombre</label>
+  <input id="cName" placeholder="Marito">
+  <label>Número (con código de país)</label>
+  <input id="cNum" inputmode="numeric" placeholder="5491145289012">
+  <button class="btn ghost" id="cImport" style="margin-top:12px;display:none" onclick="importContact()">📇 Importar de mis contactos</button>
+  <div class="mrow"><button class="btn ghost" onclick="closeModal('mContact')">Cancelar</button><button class="btn" onclick="saveContact()">Guardar</button></div>
+  <p class="tag" id="cErr" style="color:#e28"></p>
+</div></div>
+
+<!-- MODAL: new group -->
+<div id="mGroup" class="modal"><div class="card">
+  <h3>Nuevo grupo</h3>
+  <label>Nombre del grupo</label>
+  <input id="gName" placeholder="SpaceAI socios">
+  <label>Miembros</label>
+  <div class="picklist" id="gPick"></div>
+  <div class="mrow"><button class="btn ghost" onclick="closeModal('mGroup')">Cancelar</button><button class="btn" onclick="saveGroup()">Crear</button></div>
+  <p class="tag" id="gErr" style="color:#e28"></p>
+</div></div>
+
+<!-- MODAL: invitar a la llamada -->
+<div id="mInvite" class="modal"><div class="card">
+  <h3>Sumar a la llamada</h3>
+  <p class="tag">Elegí a quién invitar. Le va a sonar y, si atiende, se suma.</p>
+  <div class="picklist" id="iPick"></div>
+  <div class="mrow"><button class="btn ghost" onclick="closeModal('mInvite')">Cancelar</button><button class="btn" onclick="doInvite()">Invitar</button></div>
+</div></div>
+
+</body>

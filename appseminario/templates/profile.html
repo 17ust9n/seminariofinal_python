@@ -1,0 +1,60 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Starssenger{% endblock %}</title>
+
+    <!-- CSS principal -->
+    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=123">
+
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+
+<div id="profile" class="screen">
+  <header>
+    <button class="back" onclick="goHome()" aria-label="Atrás">←</button>
+    <b>Perfil</b>
+  </header>
+  <div class="prof">
+    <div class="bigav" id="profAv">🙂</div>
+    <label>Tu número (con código de país)</label>
+    <input id="setNum" inputmode="numeric">
+    <label>Seguridad</label>
+    <div class="seg">
+      <button id="sOff2" onclick="setSec(0)">🔓 Normal</button>
+      <button id="sOn2" onclick="setSec(1)">🛡️ Blindado</button>
+    </div>
+    <p class="tag">🛡️ Blindado: los mensajes se borran solos a los 45s y no se guarda nada en el teléfono.</p>
+    <button class="btn" style="margin-top:16px" onclick="saveProfile()">Guardar</button>
+    <p class="tag" style="margin-top:20px">🔐 Todos los mensajes y llamadas van cifrados extremo a extremo. La clave sale de los números y no viaja.</p>
+  </div>
+  <div class="tabs">
+    <button onclick="goHome()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-4v-6h-4v6H6v-9H3z"/></svg>Inicio</button>
+    <button class="act" onclick="openProfile()"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6z"/></svg>Perfil</button>
+  </div>
+</div>
+
+{% block extra_js %}
+<!-- LÓGICA JAVASCRIPT — NUEVO CHAT / PERFIL -->
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const ncSearch = document.getElementById('ncSearch');
+    
+    // Filtro de contactos en tiempo real al escribir
+    if (ncSearch) {
+      ncSearch.addEventListener('input', renderNewChat);
+    }
+
+    // Cargar número actual en la pantalla de perfil si aplica
+    const setNum = document.getElementById('setNum');
+    if (setNum && ME) {
+      setNum.value = ME;
+      setSec(SECURE);
+    }
+  });
+</script>
+{% endblock %}

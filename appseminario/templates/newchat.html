@@ -1,0 +1,51 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Starssenger{% endblock %}</title>
+
+    <!-- CSS principal -->
+    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=123">
+
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+
+<div id="newchat" class="screen">
+  <header>
+    <button class="back" onclick="goHome()" aria-label="Atrás">←</button>
+    <b>Nuevo chat</b>
+  </header>
+  <div class="searchwrap"><input id="ncSearch" placeholder="Buscar contacto…" oninput="renderNewChat()"></div>
+  <div class="ncActions">
+    <button onclick="openAddContact()"><span class="ico">＋</span> Agregar contacto nuevo</button>
+    <button onclick="importToNew()"><span class="ico">📇</span> Buscar en mi agenda</button>
+    <button onclick="openNewGroup()"><span class="ico">👥</span> Nuevo grupo</button>
+  </div>
+  <div class="sectionh">Tus contactos</div>
+  <div id="ncList"></div>
+</div>
+
+{% block extra_js %}
+<!-- LÓGICA JAVASCRIPT — NUEVO CHAT / PERFIL -->
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const ncSearch = document.getElementById('ncSearch');
+    
+    // Filtro de contactos en tiempo real al escribir
+    if (ncSearch) {
+      ncSearch.addEventListener('input', renderNewChat);
+    }
+
+    // Cargar número actual en la pantalla de perfil si aplica
+    const setNum = document.getElementById('setNum');
+    if (setNum && ME) {
+      setNum.value = ME;
+      setSec(SECURE);
+    }
+  });
+</script>
+{% endblock %}

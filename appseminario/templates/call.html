@@ -1,0 +1,55 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Starssenger{% endblock %}</title>
+
+    <!-- CSS principal -->
+    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=123">
+
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+  <div id="call" style="display: flex;">
+    <div id="grid"></div>
+    <div id="voiceface">
+      <div class="vfav" id="vfAv"></div>
+      <div id="vfName"></div>
+      <div id="vfState"></div>
+    </div>
+    <div id="audios" style="display:none"></div>
+    <div id="callkeys"></div>
+    <button id="addcall" onclick="openInvite()" title="Sumar a la llamada" aria-label="Sumar a la llamada">＋</button>
+    <button id="hang" onclick="hangup()">Colgar</button>
+  </div>
+
+  <div id="incall">
+    📹 <b id="icName"></b>
+    <span class="sp"></span>
+    <button class="dec" onclick="declineCall()">Rechazar</button>
+    <button class="acc" onclick="answerCall()">Contestar</button>
+  </div>
+
+{% block extra_js %}
+<!-- LÓGICA JAVASCRIPT — CALL -->
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const hangBtn = document.getElementById('hang');
+    const addCallBtn = document.getElementById('addcall');
+
+    // 1. Control de botones de la llamada
+    if (hangBtn) hangBtn.addEventListener('click', hangup);
+    if (addCallBtn) addCallBtn.addEventListener('click', openInvite);
+
+    // 2. Si hay una llamada pendiente entrante, mostrar notificación
+    if (pendingCall) {
+      const icName = document.getElementById('icName');
+      if (icName) icName.textContent = nameFor(pendingCall.from);
+      document.getElementById('incall').style.display = 'flex';
+    }
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Starssenger{% endblock %}</title>
+
+    <!-- CSS principal -->
+    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=123">
+
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+<div id="onboard" class="screen">
+  <img class="biglogo" id="lg1" src="logo/Starssenger.png" alt="Starssenger Logo">
+  <p class="tag" style="text-align:center">Mensajería cifrada extremo a extremo. La clave sale de los números — no viaja. Solo viaja el mensaje cifrado.</p>
+  <label>Tu número (con código de país)</label>
+  <input id="me" inputmode="numeric" placeholder="5491137824591">
+  <label>Seguridad</label>
+  <div class="seg">
+    <button id="sOff" class="act" onclick="setSec(0)">🔓 Normal</button>
+    <button id="sOn" onclick="setSec(1)">🛡️ Blindado</button>
+  </div>
+  <p class="tag">🛡️ Blindado: los mensajes se borran solos a los 45s y no se guarda nada en el teléfono. Menos rastro para un spyware.</p>
+  <button class="btn" style="margin-top:18px" onclick="saveMe()">Entrar</button>
+  <p class="tag" id="oerr" style="color:#e28"></p>
+</div>
+
+</body>

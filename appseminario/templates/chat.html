@@ -1,0 +1,64 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Starssenger{% endblock %}</title>
+
+    <!-- CSS principal -->
+    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=123">
+
+    {% block extra_head %}{% endblock %}
+</head>
+<main>
+
+<div id="chatScreen" class="screen">
+  <header>
+    <button class="back" onclick="goHome()" title="Volver" aria-label="Atrás">←</button>
+    <div class="av" id="chAv"></div>
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:600;font-size:16px" id="chName"></div>
+      <div class="chsub" id="chSub"></div>
+    </div>
+    <div class="headbtns">
+      <button class="callbtn" onclick="voiceCurrent()" title="Llamada de voz" aria-label="Llamada de voz"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8c1.4 2.8 3.8 5.2 6.6 6.6l2.2-2.2c.28-.28.68-.36 1.02-.24 1.1.36 2.28.56 3.48.56.55 0 1 .45 1 1V20c0 .55-.45 1-1 1C10.4 21 3 13.6 3 4.5c0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.2.2 2.38.56 3.48.12.34.04.74-.24 1.02z"/></svg></button>
+      <button class="callbtn" onclick="callCurrent()" title="Videollamada" aria-label="Videollamada"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="6" width="13" height="12" rx="2.5"/><path d="M17 10l4.1-2.35c.5-.29 1.12.07 1.12.65v7.4c0 .58-.62.94-1.12.65L17 14z"/></svg></button>
+    </div>
+  </header>
+  <div id="chat"></div>
+  <div id="bar">
+    <input id="txt" placeholder="Mensaje cifrado…" oninput="toggleBarBtns()" onkeydown="if(event.key==='Enter')send()">
+    <button id="micBtn" onclick="toggleRec()" title="Mensaje de voz" aria-label="Mensaje de voz"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z"/><path d="M6 11a6 6 0 0 0 12 0h-1.6a4.4 4.4 0 0 1-8.8 0zM11.2 17.3V21h1.6v-3.7z"/></svg></button>
+    <button id="sendBtn" onclick="send()" style="display:none">➤</button>
+  </div>
+</div>
+
+{% block extra_js %}
+<!-- LÓGICA JAVASCRIPT — CHAT -->
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const txtInput = document.getElementById('txt');
+    const sendBtn = document.getElementById('sendBtn');
+    const micBtn = document.getElementById('micBtn');
+
+    // 1. Escuchar escritura para alternar entre botón de Enviar y Micrófono
+    if (txtInput) {
+      txtInput.addEventListener('input', toggleBarBtns);
+      txtInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') send();
+      });
+    }
+
+    // 2. Asignar eventos a los botones de la barra de entrada
+    if (sendBtn) sendBtn.addEventListener('click', send);
+    if (micBtn) micBtn.addEventListener('click', toggleRec);
+
+    // 3. Foco automático si hay un chat activo seleccionado
+    if (cur) {
+      renderChat();
+      setTimeout(() => txtInput && txtInput.focus(), 100);
+    }
+  });
+</script>
+{% endblock %}
