@@ -1,23 +1,36 @@
 from django.contrib import admin
-from .models import Supermercado, Sucursal, Jefe, Empleado, Pasillo, Producto, Cliente, Venta
+from .models import UserProfile, Contact, Conversation, Message, Llamada
 
-@admin.register(Producto)
-class ProductoAdmin(admin.ModelAdmin):
-    list_display = ('id_producto', 'nombre', 'peso', 'stock', 'categoria', 'costo')
-    # Al ser "categoria" un String/CharField, ahora SÍ podés buscar por él sin errores
-    search_fields = ('nombre', 'id_producto', 'categoria')
-    list_filter = ('categoria',)
 
-@admin.register(Venta)
-class VentaAdmin(admin.ModelAdmin):
-    list_display = ('id_venta', 'fecha', 'producto', 'cliente', 'empleado', 'cant_cuotas')
-    list_filter = ('fecha', 'cant_cuotas')
-    search_fields = ('id_venta', 'cliente__id_cliente', 'empleado__id_empleado')
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'status_text', 'is_online')
+    search_fields = ('user__username', 'status_text')
+    list_filter = ('is_online',)
 
-# Registro simple para los demás modelos del diagrama
-admin.site.register(Supermercado)
-admin.site.register(Sucursal)
-admin.site.register(Jefe)
-admin.site.register(Empleado)
-admin.site.register(Pasillo)
-admin.site.register(Cliente)
+
+@admin.register(Contact)
+class ContactAdmin(admin.ModelAdmin):
+    list_display = ('name', 'phone_number', 'user', 'contact', 'created_at')
+    search_fields = ('name', 'phone_number', 'user__username')
+
+
+@admin.register(Conversation)
+class ConversationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'is_group', 'created_by', 'created_at')
+    list_filter = ('is_group',)
+    filter_horizontal = ('participants',)
+
+
+@admin.register(Message)
+class MessageAdmin(admin.ModelAdmin):
+    list_display = ('id', 'sender', 'conversation', 'msg_type', 'timestamp', 'is_read')
+    list_filter = ('msg_type', 'is_read', 'timestamp')
+    search_fields = ('content', 'sender__username')
+
+
+@admin.register(Llamada)
+class LlamadaAdmin(admin.ModelAdmin):
+    list_display = ('id', 'emisor', 'tipo', 'estado', 'fecha_inicio', 'duracion_segundos')
+    list_filter = ('tipo', 'estado', 'fecha_inicio')
+    filter_horizontal = ('invitados',)

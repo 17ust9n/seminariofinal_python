@@ -4,48 +4,173 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Starssenger{% endblock %}</title>
-
+    <title>Starssenger - Nuevo Chat</title>
     <!-- CSS principal -->
     <link rel="stylesheet" href="{% static 'estilos.css' %}?v=123">
-
-    {% block extra_head %}{% endblock %}
 </head>
-
 <body>
 
-<div id="newchat" class="screen">
-  <header>
-    <button class="back" onclick="goHome()" aria-label="Atrás">←</button>
-    <b>Nuevo chat</b>
+<div id="newChatScreen" class="screen on">
+  <!-- Encabezado con botón de regreso a Home -->
+  <header style="display: flex; align-items: center; gap: 12px; padding: 12px 16px;">
+    <button onclick="goHome()" style="background: none; border: none; cursor: pointer; color: inherit; padding: 0; display: flex; align-items: center;" aria-label="Volver a Inicio">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+      </svg>
+    </button>
+    <b class="brand" style="font-size: 1.1rem;">Nuevo Chat</b>
   </header>
-  <div class="searchwrap"><input id="ncSearch" placeholder="Buscar contacto…" oninput="renderNewChat()"></div>
-  <div class="ncActions">
-    <button onclick="openAddContact()"><span class="ico">＋</span> Agregar contacto nuevo</button>
-    <button onclick="importToNew()"><span class="ico">📇</span> Buscar en mi agenda</button>
-    <button onclick="openNewGroup()"><span class="ico">👥</span> Nuevo grupo</button>
-  </div>
-  <div class="sectionh">Tus contactos</div>
-  <div id="ncList"></div>
+
+  <main style="padding: 16px;">
+    <!-- Buscador en la Agenda -->
+    <div class="searchwrap" style="margin-bottom: 16px;">
+      <input id="contactSearch" placeholder="Buscar en mi agenda..." oninput="filterContacts()" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #fff; box-sizing: border-box;">
+    </div>
+
+    <!-- Acciones Rápidas -->
+    <div class="actions-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+      <!-- Crear Nuevo Grupo -->
+      <div onclick="openNewGroup()" style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer;">
+        <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(0, 132, 255, 0.2); display: flex; align-items: center; justify-content: center; color: #0084ff;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+          </svg>
+        </div>
+        <b>Nuevo grupo</b>
+      </div>
+
+      <!-- Añadir Nuevo Contacto -->
+      <div onclick="openContactModal()" style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: pointer;">
+        <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: center;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+            <path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+          </svg>
+        </div>
+        <b>Añadir nuevo contacto</b>
+      </div>
+    </div>
+
+    <!-- Lista de Contactos de la Agenda -->
+    <div id="contactsList">
+      {% for contact in contacts %}
+        <div class="chat-item contact-card" onclick="startChat('{{ contact.phone_number }}')" style="padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer;">
+          <b class="contact-name">{{ contact.name }}</b>
+          <p class="contact-phone" style="margin: 0; font-size: 0.85rem; opacity: 0.7;">{{ contact.phone_number }}</p>
+        </div>
+      {% empty %}
+        <p id="emptyMsg" style="text-align: center; color: #888; margin-top: 30px;">No tienes contactos guardados todavía.</p>
+      {% endfor %}
+    </div>
+  </main>
 </div>
 
-{% block extra_js %}
-<!-- LÓGICA JAVASCRIPT — NUEVO CHAT / PERFIL -->
+<!-- Ventanilla / Modal Flotante para Añadir Nuevo Contacto -->
+<div id="mContactModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center;">
+  <div style="background: #1e1e24; border-radius: 12px; padding: 20px; width: 85%; max-width: 360px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+    <h3 style="margin-top: 0; margin-bottom: 16px;">Nuevo contacto</h3>
+    
+    <label for="cName" style="display: block; font-size: 0.85rem; margin-bottom: 4px; opacity: 0.8;">Nombre</label>
+    <input id="cName" type="text" placeholder="Ej: Maria" style="width: 100%; padding: 10px; margin-bottom: 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: #fff; box-sizing: border-box;">
+    
+    <label for="cNum" style="display: block; font-size: 0.85rem; margin-bottom: 4px; opacity: 0.8;">Número (con código de país)</label>
+    <input id="cNum" type="tel" placeholder="Ej: 5491137824591" style="width: 100%; padding: 10px; margin-bottom: 16px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: #fff; box-sizing: border-box;">
+    
+    <p id="cErr" style="color: #e28; font-size: 0.85rem; margin-top: 0; display: none;"></p>
+
+    <!-- Botones Cancelar y Aceptar -->
+    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+      <button type="button" onclick="closeContactModal()" style="padding: 8px 16px; background: transparent; border: none; color: #ccc; cursor: pointer;">Cancelar</button>
+      <button type="button" onclick="saveContact()" style="padding: 8px 16px; background: #0084ff; border: none; border-radius: 6px; color: #fff; font-weight: bold; cursor: pointer;">Aceptar</button>
+    </div>
+  </div>
+</div>
+
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    const ncSearch = document.getElementById('ncSearch');
-    
-    // Filtro de contactos en tiempo real al escribir
-    if (ncSearch) {
-      ncSearch.addEventListener('input', renderNewChat);
-    }
-
-    // Cargar número actual en la pantalla de perfil si aplica
-    const setNum = document.getElementById('setNum');
-    if (setNum && ME) {
-      setNum.value = ME;
-      setSec(SECURE);
+    const me = localStorage.getItem('sp_me');
+    if (!me) {
+      window.location.href = "{% url 'onboard' %}";
     }
   });
+
+  // Regresar a la pantalla de inicio
+  function goHome() {
+    window.location.href = "{% url 'home' %}";
+  }
+
+  // Redirección a la vista chat.html pasando el teléfono como parámetro URL
+  function startChat(phone) {
+    window.location.href = "{% url 'chat' %}?to=" + encodeURIComponent(phone);
+  }
+
+  // Filtrar lista de contactos mediante el buscador
+  function filterContacts() {
+    const query = document.getElementById('contactSearch').value.toLowerCase();
+    const items = document.querySelectorAll('.contact-card');
+    
+    items.forEach(item => {
+      const name = item.querySelector('.contact-name').textContent.toLowerCase();
+      const phone = item.querySelector('.contact-phone').textContent.toLowerCase();
+      if (name.includes(query) || phone.includes(query)) {
+        item.style.display = 'block';
+      } else {
+        item.style.display = 'none';
+      }
+    });
+  }
+
+  // Abrir / Cerrar Modal de Añadir Contacto
+  function openContactModal() {
+    document.getElementById('cName').value = '';
+    document.getElementById('cNum').value = '';
+    document.getElementById('cErr').style.display = 'none';
+    document.getElementById('mContactModal').style.display = 'flex';
+  }
+
+  function closeContactModal() {
+    document.getElementById('mContactModal').style.display = 'none';
+  }
+
+  // Enviar el nuevo contacto al backend Django
+  function saveContact() {
+    const name = document.getElementById('cName').value.trim();
+    const phone = document.getElementById('cNum').value.replace(/\D/g, '');
+    const err = document.getElementById('cErr');
+
+    if (!name || phone.length < 6) {
+      err.textContent = 'Ingresá un nombre y número válido.';
+      err.style.display = 'block';
+      return;
+    }
+
+    fetch("{% url 'modal_handler' modal_type='mContact' %}", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token }}'
+      },
+      body: JSON.stringify({ cName: name, cNum: phone })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === 'success') {
+        closeContactModal();
+        window.location.reload();
+      } else {
+        err.textContent = data.message || 'Error al guardar el contacto.';
+        err.style.display = 'block';
+      }
+    })
+    .catch(() => {
+      err.textContent = 'Error de conexión con el servidor.';
+      err.style.display = 'block';
+    });
+  }
+
+  function openNewGroup() {
+    alert("Función de crear nuevo grupo en desarrollo.");
+  }
 </script>
-{% endblock %}
+
+</body>
+</html>

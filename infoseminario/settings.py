@@ -37,7 +37,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'infosuper.urls'
+ROOT_URLCONF = 'infoseminario.urls'
 
 TEMPLATES = [
     {
@@ -55,7 +55,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'infosuper.wsgi.application'
+WSGI_APPLICATION = 'infoseminario.wsgi.application'
 
 
 # Database
@@ -85,16 +85,17 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']  # Carpeta para estilos.css e imágenes estáticas
+
+# Solo buscar si la carpeta existe en el disco
+STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
 
 # Media files (Archivos subidos por usuarios: Avatares, Audios)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Redirecciones de Autenticación
-LOGIN_URL = 'onboard'
-LOGIN_REDIRECT_URL = 'home'
-LOGOUT_REDIRECT_URL = 'onboard'
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+# Si manejas la sesión por localStorage en JS, no fuerces el login_url automático de Django
+# LOGIN_URL = 'onboard'
+# LOGIN_REDIRECT_URL = 'home'
+# LOGOUT_REDIRECT_URL = 'onboard'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

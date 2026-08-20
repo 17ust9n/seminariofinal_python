@@ -1,59 +1,93 @@
-{% extends 'base.html' %}
 {% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starssenger - Inicio</title>
+    <!-- CSS principal -->
+    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=123">
+</head>
+<body>
 
-{% block title %}Starssenger{% endblock %}
-
-{% block content %}
-
-<!-- Banner de Bienvenida Comercial -->
-<div id="home" class="screen">
+<!-- Pantalla Principal -->
+<div id="home" class="screen on">
   <header>
-    <img class="logo" id="lg2" src="logo/Starssenger.png" alt="Starssenger Logo">
+    <img class="logo" id="lg2" src="{% static 'logo/Starssenger.png' %}" alt="Starssenger Logo">
     <b class="brand">Starssenger</b>
     <span class="sp"></span>
     <span class="dot" id="dot"></span>
   </header>
-<main>
-  <div class="searchwrap"><input id="homeSearch" placeholder="Buscar…" oninput="renderList()"></div>
-  <div id="list"></div>
-  <button id="fab" onclick="openNewChat()" title="Nuevo chat" aria-label="Nuevo chat">
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-  </button>
-  <div class="tabs">
-    <button class="act" onclick="goHome()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-4v-6h-4v6H6v-9H3z"/></svg>Inicio</button>
-    <button onclick="openProfile()"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6z"/></svg>Perfil</button>
-  </div>
-</div>
-</main>
+  
+  <main style="position: relative; min-height: calc(100vh - 60px); padding-bottom: 70px;">
+    <div class="searchwrap">
+      <input id="homeSearch" placeholder="Buscar…" oninput="filterList()">
+    </div>
+    
+    <div id="list">
+      <!-- Iteración de conversaciones de Django -->
+      {% for conversation in conversations %}
+        <div class="chat-item">
+          <b>{{ conversation.name|default:"Chat individual" }}</b>
+        </div>
+      {% empty %}
+        <p style="text-align: center; color: #888; margin-top: 20px;">No tienes conversaciones activas.</p>
+      {% endfor %}
+    </div>
 
-{% block extra_js %}
-<!-- LÓGICA JAVASCRIPT — HOME -->
+    <!-- Botón Flotante (FAB) para Nuevo Chat / Contacto -->
+    <button id="fab" onclick="openNewChat()" title="Nuevo chat" aria-label="Nuevo chat" 
+            style="position: fixed; bottom: 80px; right: 20px; z-index: 999; cursor: pointer;">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+        <path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+      </svg>
+    </button>
+
+    <!-- Barra de Navegación Inferior -->
+    <div class="tabs">
+      <button class="act" onclick="goHome()">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-4v-6h-4v6H6v-9H3z"/></svg>
+        Inicio
+      </button>
+      <button onclick="openProfile()">
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6z"/></svg>
+        Perfil
+      </button>
+    </div>
+  </main>
+</div>
+
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    // 1. Cargar assets visuales globales
-    const lg1 = document.getElementById('lg1');
-    const lg2 = document.getElementById('lg2');
-    if (lg1) lg1.src = LOGO;
-    if (lg2) lg2.src = SHIELD;
-
-    // 2. Control de Onboarding / Autenticación local
-    if (!ME) {
-      show('onboard');
-      setSec(SECURE);
+    const me = localStorage.getItem('sp_me');
+    if (!me) {
+      window.location.href = "{% url 'onboard' %}";
       return;
     }
 
-    // 3. Reconstruir conversaciones e iniciar red
-    rebuildConvs();
-    if (!client) {
-      startNet();
-    } else {
-      Object.keys(topicMap).forEach(t => client.subscribe(t));
+    if (typeof renderList === 'function') {
+      renderList();
     }
-
-    // 4. Renderizar interfaz principal
-    renderList();
-    show('home');
   });
+
+  function filterList() {
+    if (typeof renderList === 'function') {
+      renderList();
+    }
+  }
+
+  function openProfile() {
+    window.location.href = "{% url 'profile' %}";
+  }
+
+  function openNewChat() {
+    window.location.href = "{% url 'newchat' %}";
+  }
+
+  function goHome() {
+    window.location.href = "{% url 'home' %}";
+  }
 </script>
-{% endblock %}
+
+</body>
+</html>

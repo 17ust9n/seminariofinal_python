@@ -4,12 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Starssenger{% endblock %}</title>
+    <title>Starssenger - Perfil</title>
 
     <!-- CSS principal -->
     <link rel="stylesheet" href="{% static 'estilos.css' %}?v=123">
-
-    {% block extra_head %}{% endblock %}
 </head>
 
 <body>
@@ -19,42 +17,103 @@
     <button class="back" onclick="goHome()" aria-label="Atrás">←</button>
     <b>Perfil</b>
   </header>
+  
   <div class="prof">
     <div class="bigav" id="profAv">🙂</div>
-    <label>Tu número (con código de país)</label>
+    <label for="setNum">Tu número (con código de país)</label>
     <input id="setNum" inputmode="numeric">
+    
     <label>Seguridad</label>
     <div class="seg">
-      <button id="sOff2" onclick="setSec(0)">🔓 Normal</button>
-      <button id="sOn2" onclick="setSec(1)">🛡️ Blindado</button>
+      <button id="sOff2" type="button" onclick="setSec(0)">🔓 Normal</button>
+      <button id="sOn2" type="button" onclick="setSec(1)">🛡️ Blindado</button>
     </div>
     <p class="tag">🛡️ Blindado: los mensajes se borran solos a los 45s y no se guarda nada en el teléfono.</p>
-    <button class="btn" style="margin-top:16px" onclick="saveProfile()">Guardar</button>
+    
+    <button class="btn" style="margin-top:16px" type="button" onclick="saveProfile()">Guardar</button>
+    <button class="btn" style="margin-top:10px; background-color: #e28;" type="button" onclick="logout()">Cerrar Sesión</button>
     <p class="tag" style="margin-top:20px">🔐 Todos los mensajes y llamadas van cifrados extremo a extremo. La clave sale de los números y no viaja.</p>
   </div>
-  <div class="tabs">
-    <button onclick="goHome()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-4v-6h-4v6H6v-9H3z"/></svg>Inicio</button>
-    <button class="act" onclick="openProfile()"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6z"/></svg>Perfil</button>
-  </div>
-</div>
 
-{% block extra_js %}
-<!-- LÓGICA JAVASCRIPT — NUEVO CHAT / PERFIL -->
+<!-- LÓGICA JAVASCRIPT — PERFIL Y NAVEGACIÓN GLOBAL -->
 <script>
+  let currentSecureMode = 0; // 0: Normal, 1: Blindado
+
   document.addEventListener('DOMContentLoaded', function() {
-    const ncSearch = document.getElementById('ncSearch');
+    // Cargar teléfono actual de localStorage o sesión Django
+    const savedPhone = localStorage.getItem('userPhone') || '{{ request.user.username }}';
+    const savedSecure = localStorage.getItem('securityMode') || '0';
+
+    const setNum = document.getElementById('setNum');
+    if (setNum && savedPhone) {
+      setNum.value = savedPhone;
+    }
     
-    // Filtro de contactos en tiempo real al escribir
-    if (ncSearch) {
-      ncSearch.addEventListener('input', renderNewChat);
+    setSec(parseInt(savedSecure, 10));
+  });
+
+  // --- FUNCIONES DE NAVEGACIÓN GLOBAL ---
+  function goHome() {
+    window.location.href = "{% url 'home' %}";
+  }
+
+  function openProfile() {
+    window.location.href = "{% url 'profile' %}";
+  }
+
+  function openNewChat() {
+    window.location.href = "{% url 'newchat' %}";
+  }
+
+  function openCalls() {
+    window.location.href = "{% url 'call' %}";
+  }
+
+  function openChat(roomId) {
+    if (roomId) {
+      window.location.href = "/chat/" + roomId + "/";
+    } else {
+      window.location.href = "{% url 'chat' %}";
+    }
+  }
+
+  function logout() {
+    localStorage.clear();
+    window.location.href = "{% url 'onboard' %}";
+  }
+
+  // --- FUNCIONES ESPECÍFICAS DE PERFIL ---
+  function setSec(mode) {
+    currentSecureMode = mode;
+    const btnOff = document.getElementById('sOff2');
+    const btnOn = document.getElementById('sOn2');
+
+    if (btnOff && btnOn) {
+      if (mode === 1) {
+        btnOn.classList.add('act');
+        btnOff.classList.remove('act');
+      } else {
+        btnOff.classList.add('act');
+        btnOn.classList.remove('act');
+      }
+    }
+  }
+
+  function saveProfile() {
+    const phoneInput = document.getElementById('setNum');
+    if (!phoneInput || !phoneInput.value.trim()) {
+      alert('Por favor, ingresa un número de teléfono válido.');
+      return;
     }
 
-    // Cargar número actual en la pantalla de perfil si aplica
-    const setNum = document.getElementById('setNum');
-    if (setNum && ME) {
-      setNum.value = ME;
-      setSec(SECURE);
-    }
-  });
+    const newPhone = phoneInput.value.trim();
+    localStorage.setItem('userPhone', newPhone);
+    localStorage.setItem('securityMode', currentSecureMode.toString());
+
+    alert('Perfil actualizado correctamente.');
+    goHome();
+  }
 </script>
-{% endblock %}
+
+</body>
+</html>

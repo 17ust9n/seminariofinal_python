@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth import login
 from django.contrib.auth.models import User
 from django.views.decorators.http import require_POST
 import json
@@ -12,87 +12,113 @@ from .models import UserProfile, Conversation, Message, Contact, Llamada
 # 1. PANTALLAS PRINCIPALES (HTML Render)
 # ==========================================
 
-@login_required
 def home(request):
     """
-    Pantalla principal (#home screen). Carga la lista de conversaciones
-    y la agenda de contactos para la búsqueda (#homeSearch) y nuevo chat (#fab).
+    Pantalla principal (#home screen). Carga la lista de conversaciones.
+    JS maneja la validación de inicio mediante LocalStorage.
     """
-    conversations = request.user.conversations.all()
-    contacts = Contact.objects.filter(user=request.user)
+    conversations = request.user.conversations.all() if request.user.is_authenticated else []
+    contacts = Contact.objects.filter(user=request.user) if request.user.is_authenticated else []
+    profile = getattr(request.user, 'profile', None) if request.user.is_authenticated else None
     
     context = {
         'conversations': conversations,
         'contacts': contacts,
-        'profile': request.user.profile,
+        'profile': profile,
     }
     return render(request, 'home.html', context)
 
 
-@login_required
 def chat(request):
-    """Redirige al chat de la primera conversación activa o al home si no hay ninguna."""
-    last_conv = request.user.conversations.first()
-    if last_conv:
-        return redirect('chat_detail', room_id=last_conv.id)
+    """
+    Lee ?to=PHONE desde la URL, asegura que existan los usuarios
+    y la conversación, y redirige a la sala correspondiente.
+    """
+    phone = request.GET.get('to')
+
+    if phone:
+        # 1. Asegurar que exista un usuario de Django asociado a ese teléfono
+        target_user, _ = User.objects.get_or_create(username=phone)
+        UserProfile.objects.get_or_create(user=target_user)
+
+        # 2. Si el usuario actual no está autenticado, asignarle una sesión básica o invocar su usuario
+        current_user = request.user
+        if not current_user.is_authenticated:
+            current_user, _ = User.objects.get_or_create(username="invitado")
+
+        # 3. Recuperar o crear la conversación privada entre ambos
+        conversation = Conversation.objects.filter(
+            is_group=False,
+            participants=current_user
+        ).filter(participants=target_user).first()
+
+        if not conversation:
+            conversation = Conversation.objects.create(
+                is_group=False,
+                created_by=current_user
+            )
+            conversation.participants.add(current_user, target_user)
+
+        # Redirigir directamente al detalle del chat mediante su ID
+        return redirect('chat_detail', room_id=conversation.id)
+
     return redirect('home')
 
 
-@login_required
 def chat_detail(request, room_id):
-    """
-    Pantalla de chat activo (#chatScreen). Carga la conversación y sus mensajes.
-    Soporta conversaciones individuales y de grupo.
-    """
-    conversation = get_object_or_404(Conversation, id=room_id, participants=request.user)
+    """Carga la plantilla chat.html con la conversación activa."""
+    conversation = get_object_or_404(Conversation, id=room_id)
     messages = conversation.messages.all()
 
-    # Identificar la contraparte (para el avatar #chAv y subtítulo #chSub si es chat individual)
-    other_participant = None
-    if not conversation.is_group:
-        other_participant = conversation.participants.exclude(id=request.user.id).first()
+    other_participant = conversation.participants.exclude(id=request.user.id).first()
 
     context = {
         'conversation': conversation,
         'messages': messages,
         'other_participant': other_participant,
+        'target_phone': getattr(other_participant, 'username', ''),
     }
     return render(request, 'chat.html', context)
 
 
-@login_required
 def call(request):
-    """Redirige o muestra la pantalla general de llamadas."""
-    recent_calls = Llamada.objects.filter(
-        emisor=request.user
-    ) | Llamada.objects.filter(receptor_principal=request.user)
-    return render(request, 'call.html', {'calls': recent_calls.order_by('-fecha_inicio')})
+    """Muestra la pantalla general de llamadas."""
+    recent_calls = []
+    if request.user.is_authenticated:
+        recent_calls = (Llamada.objects.filter(emisor=request.user) | 
+                        Llamada.objects.filter(receptor_principal=request.user)).order_by('-fecha_inicio')
+    return render(request, 'call.html', {'calls': recent_calls})
 
 
-@login_required
 def call_room(request, room_id):
-    """Soporte de interfaz de llamada o videollamada activa."""
+    """Interfaz de llamada activa."""
     call_obj = get_object_or_404(Llamada, id=room_id)
     return render(request, 'call_room.html', {'call': call_obj})
 
 
-@login_required
 def newchat(request):
     """Vista de soporte previa a la apertura de un nuevo chat."""
-    contacts = Contact.objects.filter(user=request.user)
+    contacts = Contact.objects.filter(user=request.user) if request.user.is_authenticated else []
     return render(request, 'newchat.html', {'contacts': contacts})
 
 
-@login_required
 def profile(request):
-    """Pantalla de perfil del usuario logueado (avatar, estado #chSub, etc.)."""
-    return render(request, 'profile.html', {'profile': request.user.profile})
+    """Pantalla de perfil."""
+    prof = getattr(request.user, 'profile', None) if request.user.is_authenticated else None
+    return render(request, 'profile.html', {'profile': prof})
 
 
 def onboard(request):
     """Pantalla de onboarding/autenticación local."""
-    if request.user.is_authenticated:
-        return redirect('home')
+    if request.method == 'POST':
+        phone = request.POST.get('phone')
+        if phone:
+            user, _ = User.objects.get_or_create(username=phone)
+            login(request, user)  # Inicia sesión también en el backend si envías la petición por POST
+            return JsonResponse({'status': 'success', 'redirect_url': '/home/'})
+        return JsonResponse({'status': 'error', 'message': 'Teléfono requerido'}, status=400)
+
+    # Renderiza directamente la plantilla de onboarding sin redireccionar en Python
     return render(request, 'onboard.html')
 
 
@@ -100,21 +126,15 @@ def onboard(request):
 # 2. MODALES / ACCIONES ASÍNCRONAS (JSON API)
 # ==========================================
 
-@login_required
 @require_POST
 def modal_handler(request, modal_type):
-    """
-    Procesa las peticiones AJAX/Fetch generadas desde modal.html:
-    - modal_type == 'mContact': guarda contacto (#cName, #cNum) -> saveContact()
-    - modal_type == 'mGroup': crea nuevo grupo (#gName, #gPick) -> saveGroup()
-    - modal_type == 'mInvite': invita usuarios a la llamada (#iPick) -> doInvite()
-    """
+    """Procesa las peticiones AJAX/Fetch generadas desde los modales."""
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
         data = request.POST
 
-    # 1. MODAL: Guardar nuevo contacto (#mContact)
+    # 1. MODAL: Guardar nuevo contacto
     if modal_type == 'mContact':
         name = data.get('cName')
         phone = data.get('cNum')
@@ -122,7 +142,9 @@ def modal_handler(request, modal_type):
         if not name or not phone:
             return JsonResponse({'status': 'error', 'message': 'Todos los campos son obligatorios'}, status=400)
 
-        # Buscar si el teléfono coincide con un usuario registrado
+        if not request.user.is_authenticated:
+            return JsonResponse({'status': 'error', 'message': 'Usuario no autenticado en servidor'}, status=401)
+
         contact_user = UserProfile.objects.filter(user__username=phone).first()
         
         contact_obj, created = Contact.objects.get_or_create(
@@ -139,15 +161,17 @@ def modal_handler(request, modal_type):
 
         return JsonResponse({'status': 'success', 'message': 'Contacto guardado correctamente', 'contact_id': contact_obj.id})
 
-    # 2. MODAL: Crear nuevo grupo (#mGroup)
+    # 2. MODAL: Crear nuevo grupo
     elif modal_type == 'mGroup':
         group_name = data.get('gName')
-        member_ids = data.get('gPick', [])  # Lista de IDs de usuarios elegidos
+        member_ids = data.get('gPick', [])
 
         if not group_name:
             return JsonResponse({'status': 'error', 'message': 'Ingresá un nombre para el grupo'}, status=400)
 
-        # Crear sala de conversación grupal
+        if not request.user.is_authenticated:
+            return JsonResponse({'status': 'error', 'message': 'Usuario no autenticado en servidor'}, status=401)
+
         conversation = Conversation.objects.create(
             name=group_name,
             is_group=True,
@@ -155,14 +179,13 @@ def modal_handler(request, modal_type):
         )
         conversation.participants.add(request.user)
 
-        # Vincular participantes desde el picklist (#gPick)
         if member_ids:
             users = User.objects.filter(id__in=member_ids)
             conversation.participants.add(*users)
 
         return JsonResponse({'status': 'success', 'conversation_id': conversation.id})
 
-    # 3. MODAL: Invitar participantes a la llamada (#mInvite)
+    # 3. MODAL: Invitar a llamada
     elif modal_type == 'mInvite':
         call_id = data.get('call_id')
         invited_ids = data.get('iPick', [])

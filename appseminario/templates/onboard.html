@@ -1,0 +1,64 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Starssenger - Onboarding{% endblock %}</title>
+
+    <!-- CSS principal -->
+    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=123">
+
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+<div id="onboard" class="screen on">
+  <img class="biglogo" id="lg1" src="{% static 'Starssenger.png' %}" alt="Starssenger Logo">
+  <p class="tag" style="text-align:center">Mensajería cifrada extremo a extremo. La clave sale de los números — no viaja. Solo viaja el mensaje cifrado.</p>
+  
+  <label for="me">Tu número (con código de país)</label>
+  <input id="me" inputmode="numeric" placeholder="5491137824591" autofocus>
+  
+  <label>Seguridad</label>
+  <div class="seg">
+    <button id="sOff" class="act" type="button" onclick="setSec(0)">🔓 Normal</button>
+    <button id="sOn" type="button" onclick="setSec(1)">🛡️ Blindado</button>
+  </div>
+  
+  <p class="tag">🛡️ Blindado: los mensajes se borran solos a los 45s y no se guarda nada en el teléfono. Menos rastro para un spyware.</p>
+  <button class="btn" style="margin-top:18px" type="button" onclick="saveMe()">Entrar</button>
+  <p class="tag" id="oerr" style="color:#e28"></p>
+</div>
+
+<script>
+  let SECURE = 0;
+
+  function setSec(val) {
+    SECURE = val;
+    document.getElementById('sOff').classList.toggle('act', val === 0);
+    document.getElementById('sOn').classList.toggle('act', val === 1);
+  }
+
+  // Guardar número e ir a Home al hacer click
+  function saveMe() {
+    const el = document.getElementById('me');
+    if (!el) return;
+    const n = el.value.replace(/\D/g, '');
+    
+    if (n.length < 6) {
+      const err = document.getElementById('oerr');
+      if (err) err.textContent = 'Poné tu número completo con código de país.';
+      return;
+    }
+    
+    // Guardar en el teléfono
+    localStorage.setItem('sp_me', n);
+    localStorage.setItem('sp_secure', SECURE ? '1' : '0');
+    
+    // Ir a la vista principal
+    window.location.href = "{% url 'home' %}";
+  }
+</script>
+</body>
+</html>
