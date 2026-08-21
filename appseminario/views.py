@@ -1,88 +1,165 @@
+import json
+from django.db.models import Q
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.contrib.auth import login
 from django.contrib.auth.models import User
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-import json
 
 from .models import UserProfile, Conversation, Message, Contact, Llamada
 
+def search_users_api(request):
+    """
+    Busca usuarios en la plataforma por nombre de contacto o número de teléfono.
+    """
+    query = request.GET.get('q', '').strip()
+    if not query:
+        return JsonResponse({'status': 'success', 'results': []})
+
+    current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
+
+    # 1. Buscar en contactos guardados del usuario actual
+    user_contacts = Contact.objects.filter(
+        user=current_user
+    ).filter(
+        Q(name__icontains=query) | Q(phone_number__icontains=query)
+    )
+
+    results = []
+    found_phones = set()
+
+    for contact in user_contacts:
+        results.append({
+            'name': contact.name or contact.phone_number,
+            'phone_number': contact.phone_number,
+            'is_saved': True
+        })
+        found_phones.add(contact.phone_number)
+
+    # 2. Buscar usuarios registrados en la plataforma que NO estén en contactos pero coincidan
+    other_users = User.objects.filter(
+        username__icontains=query
+    ).exclude(username=current_user.username)
+
+    for u in other_users:
+        if u.username not in found_phones:
+            results.append({
+                'name': u.username,
+                'phone_number': u.username,
+                'is_saved': False
+            })
+
+    return JsonResponse({'status': 'success', 'results': results})
 
 # ==========================================
 # 1. PANTALLAS PRINCIPALES (HTML Render)
 # ==========================================
 
 def home(request):
+    if request.user.is_authenticated:
+        current_user = request.user
+    else:
+        current_user, _ = User.objects.get_or_create(username="invitado")
+
+    # Obtener únicamente los contactos visibles marcados para el Home
+    contacts = Contact.objects.filter(user=current_user, visible_in_home=True)
+
+    contacts_data = []
+    for c in contacts:
+        display_name = c.name.strip() if (c.name and c.name.strip()) else f"Contacto {c.phone_number}"
+        
+        contacts_data.append({
+            'id': c.id,
+            'contact_id': c.id,
+            'name': display_name,
+            'phone_number': c.phone_number,
+        })
+
+    return render(request, 'home.html', {'contacts': contacts_data})
+
+
+def chat_detail(request, room_id=None, username=None):
     """
-    Pantalla principal (#home screen). Carga la lista de conversaciones.
-    JS maneja la validación de inicio mediante LocalStorage.
+    Muestra la sala de chat e inyecta el nombre guardado del contacto para 'chName'.
     """
-    conversations = request.user.conversations.all() if request.user.is_authenticated else []
-    contacts = Contact.objects.filter(user=request.user) if request.user.is_authenticated else []
-    profile = getattr(request.user, 'profile', None) if request.user.is_authenticated else None
+    current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
     
-    context = {
-        'conversations': conversations,
-        'contacts': contacts,
-        'profile': profile,
-    }
-    return render(request, 'home.html', context)
+    if room_id:
+        conversation = get_object_or_404(Conversation, id=room_id)
+    elif username:
+        other_user = get_object_or_404(User, username=username)
+        conversation = Conversation.objects.filter(is_group=False, participants=current_user).filter(participants=other_user).first()
+        if not conversation:
+            conversation = Conversation.objects.create(is_group=False)
+            conversation.participants.add(current_user, other_user)
+
+    # Identificar al otro participante para extraer su nombre de la agenda de contactos
+    other_participant = conversation.participants.exclude(id=current_user.id).first()
+    display_name = "Chat"
+
+    if conversation.is_group:
+        display_name = conversation.name or "Grupo sin nombre"
+    elif other_participant:
+        contact = Contact.objects.filter(user=current_user, phone_number=other_participant.username).first()
+        display_name = contact.name if (contact and contact.name) else other_participant.username
+
+    messages = conversation.messages.order_by('timestamp')
+
+    return render(request, 'chat.html', {
+        'conversation': conversation,
+        'messages': messages,
+        'display_name': display_name
+    })
+
+
+@csrf_exempt
+def hide_chat_from_home_api(request, contact_id):
+    """
+    Oculta el contacto de home.html sin borrar la conversación ni eliminarlo de la lista de contactos.
+    """
+    if request.method == 'POST':
+        current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
+        contact = get_object_or_404(Contact, id=contact_id, user=current_user)
+        
+        contact.visible_in_home = False
+        contact.save()
+        
+        return JsonResponse({'status': 'success', 'message': 'Contacto quitado del Inicio'})
+    
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
 
 
 def chat(request):
-    """
-    Lee ?to=PHONE desde la URL, asegura que existan los usuarios
-    y la conversación, y redirige a la sala correspondiente.
-    """
+    """Redirige al chat resolviendo la conversación según el parámetro ?to=NUMERO."""
     phone = request.GET.get('to')
-
     if phone:
-        # 1. Asegurar que exista un usuario de Django asociado a ese teléfono
         target_user, _ = User.objects.get_or_create(username=phone)
         UserProfile.objects.get_or_create(user=target_user)
 
-        # 2. Si el usuario actual no está autenticado, asignarle una sesión básica o invocar su usuario
-        current_user = request.user
-        if not current_user.is_authenticated:
-            current_user, _ = User.objects.get_or_create(username="invitado")
+        current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
 
-        # 3. Recuperar o crear la conversación privada entre ambos
         conversation = Conversation.objects.filter(
             is_group=False,
             participants=current_user
         ).filter(participants=target_user).first()
 
         if not conversation:
-            conversation = Conversation.objects.create(
-                is_group=False,
-                created_by=current_user
-            )
+            conversation = Conversation.objects.create(is_group=False, created_by=current_user)
             conversation.participants.add(current_user, target_user)
 
-        # Redirigir directamente al detalle del chat mediante su ID
         return redirect('chat_detail', room_id=conversation.id)
 
     return redirect('home')
 
 
-def chat_detail(request, room_id):
-    """Carga la plantilla chat.html con la conversación activa."""
-    conversation = get_object_or_404(Conversation, id=room_id)
-    messages = conversation.messages.all()
-
-    other_participant = conversation.participants.exclude(id=request.user.id).first()
-
-    context = {
-        'conversation': conversation,
-        'messages': messages,
-        'other_participant': other_participant,
-        'target_phone': getattr(other_participant, 'username', ''),
-    }
-    return render(request, 'chat.html', context)
+def newchat(request):
+    current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
+    contacts = Contact.objects.filter(user=current_user)
+    return render(request, 'newchat.html', {'contacts': contacts})
 
 
 def call(request):
-    """Muestra la pantalla general de llamadas."""
     recent_calls = []
     if request.user.is_authenticated:
         recent_calls = (Llamada.objects.filter(emisor=request.user) | 
@@ -91,114 +168,142 @@ def call(request):
 
 
 def call_room(request, room_id):
-    """Interfaz de llamada activa."""
     call_obj = get_object_or_404(Llamada, id=room_id)
     return render(request, 'call_room.html', {'call': call_obj})
 
 
-def newchat(request):
-    """Vista de soporte previa a la apertura de un nuevo chat."""
-    contacts = Contact.objects.filter(user=request.user) if request.user.is_authenticated else []
-    return render(request, 'newchat.html', {'contacts': contacts})
-
-
 def profile(request):
-    """Pantalla de perfil."""
     prof = getattr(request.user, 'profile', None) if request.user.is_authenticated else None
     return render(request, 'profile.html', {'profile': prof})
 
 
 def onboard(request):
-    """Pantalla de onboarding/autenticación local."""
     if request.method == 'POST':
         phone = request.POST.get('phone')
         if phone:
             user, _ = User.objects.get_or_create(username=phone)
-            login(request, user)  # Inicia sesión también en el backend si envías la petición por POST
+            login(request, user)
             return JsonResponse({'status': 'success', 'redirect_url': '/home/'})
         return JsonResponse({'status': 'error', 'message': 'Teléfono requerido'}, status=400)
 
-    # Renderiza directamente la plantilla de onboarding sin redireccionar en Python
     return render(request, 'onboard.html')
 
 
 # ==========================================
-# 2. MODALES / ACCIONES ASÍNCRONAS (JSON API)
+# 2. MODALES / ACCIONES ASÍNCRONAS
 # ==========================================
 
 @require_POST
 def modal_handler(request, modal_type):
-    """Procesa las peticiones AJAX/Fetch generadas desde los modales."""
     try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        data = request.POST
+        data = json.loads(request.body.decode('utf-8'))
+        current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
 
-    # 1. MODAL: Guardar nuevo contacto
-    if modal_type == 'mContact':
-        name = data.get('cName')
-        phone = data.get('cNum')
+        # A) Crear o Editar Contacto
+        if modal_type == 'mContact':
+            contact_id = data.get('cId')
+            name = data.get('cName', '').strip()
+            phone = data.get('cNum', '').strip()
 
-        if not name or not phone:
-            return JsonResponse({'status': 'error', 'message': 'Todos los campos son obligatorios'}, status=400)
+            if not name or not phone:
+                return JsonResponse({'status': 'error', 'message': 'Nombre y número son obligatorios.'}, status=400)
 
-        if not request.user.is_authenticated:
-            return JsonResponse({'status': 'error', 'message': 'Usuario no autenticado en servidor'}, status=401)
+            target_user, _ = User.objects.get_or_create(username=phone)
 
-        contact_user = UserProfile.objects.filter(user__username=phone).first()
+            if contact_id:
+                contact = Contact.objects.filter(id=contact_id, user=current_user).first()
+                if contact:
+                    contact.name = name
+                    contact.phone_number = phone
+                    contact.contact = target_user
+                    contact.save()
+            else:
+                Contact.objects.create(
+                    user=current_user, 
+                    name=name, 
+                    phone_number=phone, 
+                    contact=target_user,
+                    visible_in_home=True
+                )
+
+            return JsonResponse({'status': 'success'})
+
+        # B) Eliminar Contacto
+        elif modal_type == 'deleteContact':
+            contact_id = data.get('cId')
+            contact = Contact.objects.filter(id=contact_id, user=current_user).first()
+            
+            if contact:
+                # 1. Buscar al usuario asociado por su número de teléfono
+                target_user = User.objects.filter(username=contact.phone_number).first()
+                
+                # 2. Eliminar la conversación activa en Home si existe
+                if target_user:
+                    conversations = Conversation.objects.filter(
+                        is_group=False, 
+                        participants=current_user
+                    ).filter(participants=target_user)
+                    conversations.delete()
+
+                # 3. Eliminar el contacto de la agenda
+                contact.delete()
+
+                return JsonResponse({'status': 'success'})
+            else:
+                return JsonResponse({'status': 'error', 'message': 'El contacto no existe.'}, status=404)
+
+        return JsonResponse({'status': 'error', 'message': f'Acción no válida: {modal_type}'}, status=400)
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+# ==========================================
+# 3. API DE MENSAJES
+# ==========================================
+
+@csrf_exempt
+def send_message_api(request):
+    if request.method == 'POST':
+        conversation_id = request.POST.get('conversation_id')
+        msg_type = request.POST.get('msg_type', 'text')
         
-        contact_obj, created = Contact.objects.get_or_create(
-            user=request.user,
-            phone_number=phone,
-            defaults={
-                'name': name,
-                'contact': contact_user.user if contact_user else None
-            }
-        )
-        if not created:
-            contact_obj.name = name
-            contact_obj.save()
+        if not conversation_id:
+            return JsonResponse({'status': 'error', 'message': 'ID de conversación requerido'}, status=400)
 
-        return JsonResponse({'status': 'success', 'message': 'Contacto guardado correctamente', 'contact_id': contact_obj.id})
+        conversation = get_object_or_404(Conversation, id=conversation_id)
+        sender = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
 
-    # 2. MODAL: Crear nuevo grupo
-    elif modal_type == 'mGroup':
-        group_name = data.get('gName')
-        member_ids = data.get('gPick', [])
+        message = Message(conversation=conversation, sender=sender, msg_type=msg_type)
 
-        if not group_name:
-            return JsonResponse({'status': 'error', 'message': 'Ingresá un nombre para el grupo'}, status=400)
+        if msg_type == 'audio' and 'audio_file' in request.FILES:
+            message.audio_file = request.FILES['audio_file']
+        else:
+            message.content = request.POST.get('content', '')
 
-        if not request.user.is_authenticated:
-            return JsonResponse({'status': 'error', 'message': 'Usuario no autenticado en servidor'}, status=401)
+        message.save()
+        conversation.save()
 
-        conversation = Conversation.objects.create(
-            name=group_name,
-            is_group=True,
-            created_by=request.user
-        )
-        conversation.participants.add(request.user)
+        return JsonResponse({
+            'status': 'success',
+            'message_id': message.id,
+            'audio_url': message.audio_file.url if message.audio_file else '',
+            'content': message.content,
+            'sender': message.sender.username,
+            'msg_type': message.msg_type
+        })
 
-        if member_ids:
-            users = User.objects.filter(id__in=member_ids)
-            conversation.participants.add(*users)
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
 
-        return JsonResponse({'status': 'success', 'conversation_id': conversation.id})
 
-    # 3. MODAL: Invitar a llamada
-    elif modal_type == 'mInvite':
-        call_id = data.get('call_id')
-        invited_ids = data.get('iPick', [])
+@csrf_exempt
+def delete_message_api(request, message_id):
+    if request.method == 'POST':
+        message = get_object_or_404(Message, id=message_id)
+        if message.msg_type == 'audio' and message.audio_file:
+            message.audio_file.delete(save=False)
+            
+        message.delete()
+        return JsonResponse({'status': 'success', 'message': 'Mensaje eliminado'})
 
-        if not call_id:
-            return JsonResponse({'status': 'error', 'message': 'ID de llamada no especificado'}, status=400)
-
-        call_obj = get_object_or_404(Llamada, id=call_id)
-        
-        if invited_ids:
-            users_to_invite = User.objects.filter(id__in=invited_ids)
-            call_obj.invitados.add(*users_to_invite)
-
-        return JsonResponse({'status': 'success', 'message': 'Invitaciones enviadas correctamente'})
-
-    return JsonResponse({'status': 'error', 'message': 'Tipo de modal no reconocido'}, status=400)
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)

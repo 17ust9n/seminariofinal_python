@@ -5,17 +5,9 @@ from django.dispatch import receiver
 
 
 class UserProfile(models.Model):
-    """
-    Datos del perfil de usuario para cabeceras de chat, estado (#dot)
-    y llaves para cifrado/suscripciones.
-    """
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
-    status_text = models.CharField(
-        max_length=100, 
-        default="En línea", 
-        help_text="Texto corto de estado para #chSub"
-    )
+    status_text = models.CharField(max_length=100, default="En línea", help_text="Texto corto de estado para #chSub")
     is_online = models.BooleanField(default=False, help_text="Estado del indicador #dot")
     pub_key = models.TextField(blank=True, null=True, help_text="Llave pública para cifrado P2P/MQTT")
 
@@ -24,10 +16,6 @@ class UserProfile(models.Model):
 
 
 class Contact(models.Model):
-    """
-    Soporta la ventana modal #mContact (Nuevo contacto).
-    Guarda nombre/alias y teléfono con código de país (#cNum).
-    """
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='contacts_owner')
     contact = models.ForeignKey(
         User, 
@@ -39,6 +27,10 @@ class Contact(models.Model):
     )
     name = models.CharField(max_length=100, help_text="Nombre local asignado por el usuario (#cName)")
     phone_number = models.CharField(max_length=20, help_text="Número con código de país (#cNum)")
+    
+    # Campo para ocultar de Home sin borrar el contacto ni las conversaciones
+    visible_in_home = models.BooleanField(default=True)
+    
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -49,27 +41,10 @@ class Contact(models.Model):
 
 
 class Conversation(models.Model):
-    """
-    Soporta chats individuales y la ventana modal #mGroup (Nuevo grupo).
-    """
-    name = models.CharField(
-        max_length=100, 
-        blank=True, 
-        null=True, 
-        help_text="Nombre del grupo (#gName) en caso de ser chat grupal"
-    )
+    name = models.CharField(max_length=100, blank=True, null=True, help_text="Nombre del grupo (#gName) en caso de ser chat grupal")
     is_group = models.BooleanField(default=False)
-    participants = models.ManyToManyField(
-        User, 
-        related_name='conversations',
-        help_text="Miembros seleccionados (#gPick)"
-    )
-    created_by = models.ForeignKey(
-        User, 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        related_name='created_groups'
-    )
+    participants = models.ManyToManyField(User, related_name='conversations', help_text="Miembros seleccionados (#gPick)")
+    created_by = models.ForeignKey(User, on_delete=SET_NULL if False else models.SET_NULL, null=True, related_name='created_groups')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -77,11 +52,9 @@ class Conversation(models.Model):
         ordering = ['-updated_at']
 
     def get_last_message(self):
-        """Devuelve el último mensaje para renderizar en la lista del home."""
         return self.messages.order_by('-timestamp').first()
 
     def unread_count_for_user(self, user):
-        """Mide los mensajes no leídos para un participante."""
         return self.messages.filter(is_read=False).exclude(sender=user).count()
 
     def __str__(self):
@@ -91,24 +64,13 @@ class Conversation(models.Model):
 
 
 class Message(models.Model):
-    """
-    Almacena mensajes de texto o de voz para chats individuales o de grupo.
-    """
     MESSAGE_TYPES = (
         ('text', 'Texto'),
         ('audio', 'Mensaje de Voz'),
     )
 
-    conversation = models.ForeignKey(
-        Conversation, 
-        on_delete=models.CASCADE, 
-        related_name='messages'
-    )
-    sender = models.ForeignKey(
-        User, 
-        on_delete=models.CASCADE, 
-        related_name='sent_messages'
-    )
+    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
     content = models.TextField(blank=True, null=True, help_text="Texto o payload cifrado")
     audio_file = models.FileField(upload_to='chat_audio/', blank=True, null=True)
     msg_type = models.CharField(max_length=10, choices=MESSAGE_TYPES, default='text')
@@ -123,30 +85,11 @@ class Message(models.Model):
 
 
 class Llamada(models.Model):
-    """
-    Soporta llamadas de voz/video y la ventana modal #mInvite (Sumar a la llamada).
-    """
-    TIPO_CHOICES = [
-        ('VO', 'Voz'),
-        ('VI', 'Video'),
-    ]
-
-    ESTADOS_CHOICES = [
-        ('PE', 'Pendiente'),
-        ('CO', 'Contestada'),
-        ('RE', 'Rechazada'),
-        ('FI', 'Finalizada'),
-    ]
+    TIPO_CHOICES = [('VO', 'Voz'), ('VI', 'Video')]
+    ESTADOS_CHOICES = [('PE', 'Pendiente'), ('CO', 'Contestada'), ('RE', 'Rechazada'), ('FI', 'Finalizada')]
 
     emisor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='llamadas_iniciadas')
-    receptor_principal = models.ForeignKey(
-        User, 
-        on_delete=models.CASCADE, 
-        related_name='llamadas_recibidas',
-        null=True,
-        blank=True
-    )
-    # Permite invitar a múltiples participantes desde #mInvite (#iPick)
+    receptor_principal = models.ForeignKey(User, on_delete=models.CASCADE, related_name='llamadas_recibidas', null=True, blank=True)
     invitados = models.ManyToManyField(User, related_name='llamadas_invitadas', blank=True)
     tipo = models.CharField(max_length=2, choices=TIPO_CHOICES, default='VO')
     estado = models.CharField(max_length=2, choices=ESTADOS_CHOICES, default='PE')
@@ -156,17 +99,11 @@ class Llamada(models.Model):
     class Meta:
         ordering = ['-fecha_inicio']
 
-    def __str__(self):
-        return f"Llamada ({self.get_tipo_display()}) de {self.emisor.username} - Estado: {self.get_estado_display()}"
-
-
-# ==========================================
-# SIGNALS (Perfil automático)
-# ==========================================
 
 @receiver(post_save, sender=User)
 def create_or_update_user_profile(sender, instance, created, **kwargs):
     if created:
         UserProfile.objects.create(user=instance)
     else:
-        instance.profile.save()
+        if hasattr(instance, 'profile'):
+            instance.profile.save()

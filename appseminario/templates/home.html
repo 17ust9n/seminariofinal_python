@@ -5,88 +5,131 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Starssenger - Inicio</title>
-    <!-- CSS principal -->
-    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=123">
+    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=125">
+    <style>
+      body { margin: 0; padding-bottom: 60px; }
+      .bottom-nav {
+        position: fixed; bottom: 0; left: 0; width: 100%; height: 60px;
+        background: #1e1e24; display: flex; justify-content: space-around;
+        align-items: center; border-top: 1px solid rgba(255, 255, 255, 0.1); z-index: 1000;
+      }
+      .bottom-nav button {
+        background: none; border: none; color: #888; display: flex;
+        flex-direction: column; align-items: center; gap: 4px; font-size: 0.75rem;
+        cursor: pointer; width: 50%; padding: 8px 0;
+      }
+      .bottom-nav button.active { color: #0084ff; }
+      .bottom-nav svg { width: 22px; height: 22px; }
+
+      .search-visible {
+        width: 100% !important;
+        padding: 12px 14px !important;
+        border-radius: 10px !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        background-color: #2b2b36 !important;
+        color: #ffffff !important;
+        font-size: 0.95rem !important;
+        outline: none !important;
+        box-sizing: border-box !important;
+        -webkit-text-security: none !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+      }
+
+      .search-visible::placeholder {
+        color: #aaaaaa !important;
+        opacity: 1 !important;
+      }
+    </style>
 </head>
 <body>
 
-<!-- Pantalla Principal -->
 <div id="home" class="screen on">
-  <header>
-    <img class="logo" id="lg2" src="{% static 'logo/Starssenger.png' %}" alt="Starssenger Logo">
-    <b class="brand">Starssenger</b>
-    <span class="sp"></span>
+  <header style="display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+    <img class="logo" id="lg2" src="{% static 'logo/Starssenger.png' %}" alt="Starssenger Logo" style="height: 30px; margin-right: 8px;">
+    <b class="brand" style="font-size: 1.2rem;">Starssenger</b>
+    <span class="sp" style="flex: 1;"></span>
     <span class="dot" id="dot"></span>
   </header>
   
-  <main style="position: relative; min-height: calc(100vh - 60px); padding-bottom: 70px;">
-    <div class="searchwrap">
-      <input id="homeSearch" placeholder="Buscar…" oninput="filterList()">
+  <main style="padding: 16px;">
+    <!-- Buscador -->
+    <div class="searchwrap" style="margin-bottom: 16px; width: 100%;">
+      <input id="homeSearch" 
+             type="text" 
+             class="search search-visible" 
+             placeholder="Buscar contacto por nombre o número…" 
+             oninput="filterList()" 
+             autocomplete="off">
     </div>
     
+    <!-- Lista de Contactos -->
     <div id="list">
-      <!-- Iteración de conversaciones de Django -->
-      {% for conversation in conversations %}
-        <div class="chat-item">
-          <b>{{ conversation.name|default:"Chat individual" }}</b>
+      {% for contact in contacts %}
+        <div class="chat-item contact-card" id="chat-item-{{ contact.id }}" onclick="openChat('{{ contact.phone_number }}')" style="padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <b class="contact-name" style="display: block;">{{ contact.name }}</b>
+            <p class="contact-phone" style="margin: 0; font-size: 0.85rem; opacity: 0.7;">{{ contact.phone_number }}</p>
+          </div>
         </div>
       {% empty %}
-        <p style="text-align: center; color: #888; margin-top: 20px;">No tienes conversaciones activas.</p>
+        <p style="text-align: center; color: #888; margin-top: 30px;">No hay contactos guardados.</p>
       {% endfor %}
     </div>
 
-    <!-- Botón Flotante (FAB) para Nuevo Chat / Contacto -->
+    <!-- Botón Flotante (FAB) -->
     <button id="fab" onclick="openNewChat()" title="Nuevo chat" aria-label="Nuevo chat" 
-            style="position: fixed; bottom: 80px; right: 20px; z-index: 999; cursor: pointer;">
+            style="position: fixed; bottom: 75px; right: 20px; z-index: 999; cursor: pointer; width: 50px; height: 50px; border-radius: 50%; background: #0084ff; color: #fff; border: none; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
       <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
         <path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
       </svg>
     </button>
-
-    <!-- Barra de Navegación Inferior -->
-    <div class="tabs">
-      <button class="act" onclick="goHome()">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-4v-6h-4v6H6v-9H3z"/></svg>
-        Inicio
-      </button>
-      <button onclick="openProfile()">
-        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6z"/></svg>
-        Perfil
-      </button>
-    </div>
   </main>
 </div>
 
+<!-- Navegación Inferior Actualizada -->
+<nav class="bottom-nav">
+  <button class="active" onclick="window.location.href='{% url 'home' %}'">
+    <svg viewBox="0 0 24 24" fill="currentColor">
+      <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+    </svg>
+    <span>Inicio</span>
+  </button>
+  <button onclick="window.location.href='{% url 'profile' %}'">
+    <svg viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+    </svg>
+    <span>Perfil</span>
+  </button>
+</nav>
+
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
-    const me = localStorage.getItem('sp_me');
-    if (!me) {
-      window.location.href = "{% url 'onboard' %}";
-      return;
-    }
+function openChat(phone) {
+    if (phone) window.location.href = `/chat/?to=${phone}`;
+}
 
-    if (typeof renderList === 'function') {
-      renderList();
-    }
-  });
+function openNewChat() { 
+    window.location.href = "{% url 'newchat' %}"; 
+}
 
-  function filterList() {
-    if (typeof renderList === 'function') {
-      renderList();
-    }
-  }
+function filterList() {
+    const query = document.getElementById('homeSearch').value.toLowerCase().trim();
+    const items = document.querySelectorAll('#list .contact-card');
+    
+    items.forEach(item => {
+        const nameEl = item.querySelector('.contact-name');
+        const phoneEl = item.querySelector('.contact-phone');
 
-  function openProfile() {
-    window.location.href = "{% url 'profile' %}";
-  }
+        const name = nameEl ? nameEl.textContent.toLowerCase() : '';
+        const phone = phoneEl ? phoneEl.textContent.toLowerCase() : '';
 
-  function openNewChat() {
-    window.location.href = "{% url 'newchat' %}";
-  }
-
-  function goHome() {
-    window.location.href = "{% url 'home' %}";
-  }
+        if (name.includes(query) || phone.includes(query)) {
+            item.style.display = 'flex';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
 </script>
 
 </body>

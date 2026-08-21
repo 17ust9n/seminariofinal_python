@@ -16,4 +16,10 @@ urlpatterns = [
 
     # --- Modales / Acciones Asíncronas ---
     path('modal/<str:modal_type>/', views.modal_handler, name='modal_handler'),
+
+    # --- API de Mensajes y Audios ---
+    path('api/send-message/', views.send_message_api, name='send_message_api'),
+    path('api/delete-message/<int:message_id>/', views.delete_message_api, name='delete_message_api'),
+    path('api/hide-chat/<int:room_id>/', views.hide_chat_from_home_api, name='hide_chat_from_home_api'),
+    path('api/search-users/', views.search_users_api, name='search_users_api'),
 ]

@@ -8,17 +8,56 @@
 
     <!-- CSS principal -->
     <link rel="stylesheet" href="{% static 'estilos.css' %}?v=123">
+    <style>
+      /* Estilos para la barra inferior fijada al pie de la pantalla */
+      body {
+        margin: 0;
+        padding-bottom: 70px; /* Margen para evitar que el contenido tape los botones */
+      }
+      .bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 60px;
+        background: #1e1e24;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        z-index: 1000;
+      }
+      .bottom-nav button {
+        background: none;
+        border: none;
+        color: #888;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.75rem;
+        cursor: pointer;
+        width: 50%;
+        padding: 8px 0;
+      }
+      .bottom-nav button.active {
+        color: #0084ff;
+      }
+      .bottom-nav svg {
+        width: 22px;
+        height: 22px;
+      }
+    </style>
 </head>
 
 <body>
 
 <div id="profile" class="screen">
-  <header>
-    <button class="back" onclick="goHome()" aria-label="Atrás">←</button>
-    <b>Perfil</b>
+  <header style="display: flex; align-items: center; justify-content: center; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+    <b style="font-size: 1.2rem;">Perfil</b>
   </header>
   
-  <div class="prof">
+  <div class="prof" style="padding: 16px;">
     <div class="bigav" id="profAv">🙂</div>
     <label for="setNum">Tu número (con código de país)</label>
     <input id="setNum" inputmode="numeric">
@@ -34,6 +73,25 @@
     <button class="btn" style="margin-top:10px; background-color: #e28;" type="button" onclick="logout()">Cerrar Sesión</button>
     <p class="tag" style="margin-top:20px">🔐 Todos los mensajes y llamadas van cifrados extremo a extremo. La clave sale de los números y no viaja.</p>
   </div>
+</div>
+
+<!-- Barra de Navegación Inferior (Fija) -->
+<nav class="bottom-nav">
+  <button onclick="goHome()">
+    <svg viewBox="0 0 24 24" fill="currentColor">
+      <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+    </svg>
+    <span>Inicio</span>
+  </button>
+
+  <button class="active" onclick="openProfile()">
+    <svg viewBox="0 0 24 24" fill="currentColor">
+      <circle cx="12" cy="8" r="4"/>
+      <path d="M12 14c-6.1 0-8 4-8 6h16c0-2-1.9-6-8-6z"/>
+    </svg>
+    <span>Perfil</span>
+  </button>
+</nav>
 
 <!-- LÓGICA JAVASCRIPT — PERFIL Y NAVEGACIÓN GLOBAL -->
 <script>

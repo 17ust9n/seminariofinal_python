@@ -4,172 +4,254 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Starssenger - Nuevo Chat</title>
-    <!-- CSS principal -->
-    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=123">
+    <title>Nuevo Chat - Starssenger</title>
+    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=125">
+    <style>
+      body { margin: 0; padding-bottom: 60px; }
+      .bottom-nav {
+        position: fixed; bottom: 0; left: 0; width: 100%; height: 60px;
+        background: #1e1e24; display: flex; justify-content: space-around;
+        align-items: center; border-top: 1px solid rgba(255, 255, 255, 0.1); z-index: 1000;
+      }
+      .bottom-nav button {
+        background: none; border: none; color: #888; display: flex;
+        flex-direction: column; align-items: center; gap: 4px; font-size: 0.75rem;
+        cursor: pointer; width: 50%; padding: 8px 0;
+      }
+      .bottom-nav button.active { color: #0084ff; }
+      .bottom-nav svg { width: 22px; height: 22px; }
+
+      .search-visible {
+        width: 100% !important;
+        padding: 12px 14px !important;
+        border-radius: 10px !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        background-color: #2b2b36 !important;
+        color: #ffffff !important;
+        font-size: 0.95rem !important;
+        outline: none !important;
+        box-sizing: border-box !important;
+        -webkit-text-security: none !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+      }
+
+      .search-visible::placeholder {
+        color: #aaaaaa !important;
+        opacity: 1 !important;
+      }
+    </style>
 </head>
 <body>
 
-<div id="newChatScreen" class="screen on">
-  <!-- Encabezado con botón de regreso a Home -->
-  <header style="display: flex; align-items: center; gap: 12px; padding: 12px 16px;">
-    <button onclick="goHome()" style="background: none; border: none; cursor: pointer; color: inherit; padding: 0; display: flex; align-items: center;" aria-label="Volver a Inicio">
-      <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
-      </svg>
-    </button>
-    <b class="brand" style="font-size: 1.1rem;">Nuevo Chat</b>
-  </header>
+<header style="display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+  <button class="back-btn" onclick="window.location.href='{% url 'home' %}'" style="background: none; border: none; color: #fff; font-size: 1.2rem; cursor: pointer; margin-right: 12px;">&larr;</button>
+  <b style="font-size: 1.2rem;">Nuevo Chat</b>
+</header>
 
-  <main style="padding: 16px;">
-    <!-- Buscador en la Agenda -->
-    <div class="searchwrap" style="margin-bottom: 16px;">
-      <input id="contactSearch" placeholder="Buscar en mi agenda..." oninput="filterContacts()" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #fff; box-sizing: border-box;">
-    </div>
+<main style="padding: 16px;">
+  <!-- Botón Agregar Nuevo Contacto -->
+  <button class="action-btn" onclick="openAddModal()" style="width: 100%; padding: 12px; margin-bottom: 16px; border-radius: 8px; border: none; background: #0084ff; color: #fff; font-weight: bold; cursor: pointer;">+ Agregar nuevo contacto</button>
 
-    <!-- Acciones Rápidas -->
-    <div class="actions-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
-      <!-- Crear Nuevo Grupo -->
-      <div onclick="openNewGroup()" style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer;">
-        <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(0, 132, 255, 0.2); display: flex; align-items: center; justify-content: center; color: #0084ff;">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
-          </svg>
+  <!-- Buscador de Usuarios -->
+  <div class="searchwrap" style="margin-bottom: 16px; width: 100%;">
+    <input id="newChatSearch" 
+           type="text" 
+           class="search search-visible" 
+           placeholder="Escribe el nombre o teléfono del contacto…" 
+           oninput="liveSearchNewChat()" 
+           autocomplete="off">
+  </div>
+
+  <!-- Lista de Contactos -->
+  <div id="contacts-list">
+    {% for contact in contacts %}
+      <div class="contact-item" id="contact-item-{{ contact.id }}" onclick="openChat('{{ contact.phone_number }}')" style="padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <b style="display: block;">{{ contact.name }}</b>
+          <span style="font-size: 0.85rem; opacity: 0.7;">{{ contact.phone_number }}</span>
         </div>
-        <b>Nuevo grupo</b>
+        
+        <div style="display: flex; gap: 8px;" onclick="event.stopPropagation();">
+          <!-- Botón Modificar / Editar -->
+          <button onclick="openEditModal('{{ contact.id }}', '{{ contact.name|escapejs }}', '{{ contact.phone_number|escapejs }}')" title="Editar" class="edit-btn" style="background: none; border: none; color: #0084ff; cursor: pointer; padding: 4px;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+            </svg>
+          </button>
+          
+          <!-- Botón Eliminar -->
+          <button onclick="deleteContact('{{ contact.id }}')" title="Eliminar" class="delete-btn" style="background: none; border: none; color: #ff4d4d; cursor: pointer; padding: 4px;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+            </svg>
+          </button>
+        </div>
       </div>
+    {% empty %}
+      <p class="empty-msg" style="text-align: center; color: #888; margin-top: 30px;">No tienes contactos guardados.</p>
+    {% endfor %}
+  </div>
+</main>
 
-      <!-- Añadir Nuevo Contacto -->
-      <div onclick="openContactModal()" style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: pointer;">
-        <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: center;">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-            <path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-          </svg>
-        </div>
-        <b>Añadir nuevo contacto</b>
-      </div>
-    </div>
-
-    <!-- Lista de Contactos de la Agenda -->
-    <div id="contactsList">
-      {% for contact in contacts %}
-        <div class="chat-item contact-card" onclick="startChat('{{ contact.phone_number }}')" style="padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer;">
-          <b class="contact-name">{{ contact.name }}</b>
-          <p class="contact-phone" style="margin: 0; font-size: 0.85rem; opacity: 0.7;">{{ contact.phone_number }}</p>
-        </div>
-      {% empty %}
-        <p id="emptyMsg" style="text-align: center; color: #888; margin-top: 30px;">No tienes contactos guardados todavía.</p>
-      {% endfor %}
-    </div>
-  </main>
-</div>
-
-<!-- Ventanilla / Modal Flotante para Añadir Nuevo Contacto -->
-<div id="mContactModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center;">
-  <div style="background: #1e1e24; border-radius: 12px; padding: 20px; width: 85%; max-width: 360px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
-    <h3 style="margin-top: 0; margin-bottom: 16px;">Nuevo contacto</h3>
+<!-- Modal para Agregar / Editar Contacto -->
+<div id="contactModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; z-index: 1001;">
+  <div class="modal-content" style="background: #2b2b36; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; color: #fff;">
+    <h3 id="modalTitle" style="margin-top: 0;">Agregar Contacto</h3>
+    <input type="hidden" id="cId">
+    <input type="text" id="cName" class="search-visible" placeholder="Nombre completo" style="margin-bottom: 12px;">
+    <input type="text" id="cNum" class="search-visible" placeholder="Número de teléfono" style="margin-bottom: 16px;">
     
-    <label for="cName" style="display: block; font-size: 0.85rem; margin-bottom: 4px; opacity: 0.8;">Nombre</label>
-    <input id="cName" type="text" placeholder="Ej: Maria" style="width: 100%; padding: 10px; margin-bottom: 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: #fff; box-sizing: border-box;">
-    
-    <label for="cNum" style="display: block; font-size: 0.85rem; margin-bottom: 4px; opacity: 0.8;">Número (con código de país)</label>
-    <input id="cNum" type="tel" placeholder="Ej: 5491137824591" style="width: 100%; padding: 10px; margin-bottom: 16px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: #fff; box-sizing: border-box;">
-    
-    <p id="cErr" style="color: #e28; font-size: 0.85rem; margin-top: 0; display: none;"></p>
-
-    <!-- Botones Cancelar y Aceptar -->
-    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
-      <button type="button" onclick="closeContactModal()" style="padding: 8px 16px; background: transparent; border: none; color: #ccc; cursor: pointer;">Cancelar</button>
-      <button type="button" onclick="saveContact()" style="padding: 8px 16px; background: #0084ff; border: none; border-radius: 6px; color: #fff; font-weight: bold; cursor: pointer;">Aceptar</button>
+    <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 8px;">
+      <button onclick="closeModal()" class="btn-cancel" style="padding: 8px 16px; border-radius: 6px; border: none; background: #444; color: #fff; cursor: pointer;">Cancelar</button>
+      <button onclick="saveContact()" class="btn-save" style="padding: 8px 16px; border-radius: 6px; border: none; background: #0084ff; color: #fff; cursor: pointer;">Guardar</button>
     </div>
   </div>
 </div>
 
+<!-- Navegación Inferior -->
+<nav class="bottom-nav">
+  <button onclick="window.location.href='{% url 'home' %}'">
+    <svg viewBox="0 0 24 24" fill="currentColor">
+      <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+    </svg>
+    <span>Inicio</span>
+  </button>
+  <button onclick="window.location.href='{% url 'profile' %}'">
+    <svg viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+    </svg>
+    <span>Perfil</span>
+  </button>
+</nav>
+
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
-    const me = localStorage.getItem('sp_me');
-    if (!me) {
-      window.location.href = "{% url 'onboard' %}";
-    }
-  });
+function openChat(phone) {
+    if (phone) window.location.href = `/chat/?to=${phone}`;
+}
 
-  // Regresar a la pantalla de inicio
-  function goHome() {
-    window.location.href = "{% url 'home' %}";
-  }
-
-  // Redirección a la vista chat.html pasando el teléfono como parámetro URL
-  function startChat(phone) {
-    window.location.href = "{% url 'chat' %}?to=" + encodeURIComponent(phone);
-  }
-
-  // Filtrar lista de contactos mediante el buscador
-  function filterContacts() {
-    const query = document.getElementById('contactSearch').value.toLowerCase();
-    const items = document.querySelectorAll('.contact-card');
-    
-    items.forEach(item => {
-      const name = item.querySelector('.contact-name').textContent.toLowerCase();
-      const phone = item.querySelector('.contact-phone').textContent.toLowerCase();
-      if (name.includes(query) || phone.includes(query)) {
-        item.style.display = 'block';
-      } else {
-        item.style.display = 'none';
-      }
-    });
-  }
-
-  // Abrir / Cerrar Modal de Añadir Contacto
-  function openContactModal() {
+function openAddModal() {
+    document.getElementById('modalTitle').textContent = 'Agregar Contacto';
+    document.getElementById('cId').value = '';
     document.getElementById('cName').value = '';
     document.getElementById('cNum').value = '';
-    document.getElementById('cErr').style.display = 'none';
-    document.getElementById('mContactModal').style.display = 'flex';
-  }
+    document.getElementById('contactModal').style.display = 'flex';
+}
 
-  function closeContactModal() {
-    document.getElementById('mContactModal').style.display = 'none';
-  }
+function openEditModal(id, name, phone) {
+    document.getElementById('modalTitle').textContent = 'Modificar Contacto';
+    document.getElementById('cId').value = id;
+    document.getElementById('cName').value = name;
+    document.getElementById('cNum').value = phone;
+    document.getElementById('contactModal').style.display = 'flex';
+}
 
-  // Enviar el nuevo contacto al backend Django
-  function saveContact() {
-    const name = document.getElementById('cName').value.trim();
-    const phone = document.getElementById('cNum').value.replace(/\D/g, '');
-    const err = document.getElementById('cErr');
+function closeModal() {
+    document.getElementById('contactModal').style.display = 'none';
+}
 
-    if (!name || phone.length < 6) {
-      err.textContent = 'Ingresá un nombre y número válido.';
-      err.style.display = 'block';
-      return;
+async function saveContact() {
+    const cId = document.getElementById('cId').value;
+    const cName = document.getElementById('cName').value.trim();
+    const cNum = document.getElementById('cNum').value.trim();
+
+    if (!cName || !cNum) {
+        alert('Por favor ingresa nombre y teléfono');
+        return;
     }
 
-    fetch("{% url 'modal_handler' modal_type='mContact' %}", {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': '{{ csrf_token }}'
-      },
-      body: JSON.stringify({ cName: name, cNum: phone })
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.status === 'success') {
-        closeContactModal();
-        window.location.reload();
-      } else {
-        err.textContent = data.message || 'Error al guardar el contacto.';
-        err.style.display = 'block';
-      }
-    })
-    .catch(() => {
-      err.textContent = 'Error de conexión con el servidor.';
-      err.style.display = 'block';
-    });
-  }
+    try {
+        const response = await fetch('/modal/mContact/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ cId, cName, cNum })
+        });
+        const data = await response.json();
+        if (data.status === 'success') {
+            window.location.reload();
+        } else {
+            alert(data.message || 'Error al guardar contacto');
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Error de conexión');
+    }
+}
 
-  function openNewGroup() {
-    alert("Función de crear nuevo grupo en desarrollo.");
-  }
+async function deleteContact(id) {
+    if (!confirm('¿Seguro que deseas eliminar este contacto?')) return;
+
+    try {
+        const response = await fetch('/modal/deleteContact/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ cId: id })
+        });
+        const data = await response.json();
+        if (data.status === 'success') {
+            window.location.reload();
+        } else {
+            alert(data.message || 'Error al eliminar contacto');
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Error de conexión');
+    }
+}
+
+let originalNewChatHTML = null;
+
+async function liveSearchNewChat() {
+    const listContainer = document.getElementById('contacts-list');
+    
+    if (originalNewChatHTML === null) {
+        originalNewChatHTML = listContainer.innerHTML;
+    }
+
+    const query = document.getElementById('newChatSearch').value.trim();
+
+    if (!query) {
+        listContainer.innerHTML = originalNewChatHTML;
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/search-users/?q=${encodeURIComponent(query)}`);
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            listContainer.innerHTML = '';
+
+            if (data.results.length === 0) {
+                listContainer.innerHTML = '<p class="empty-msg" style="text-align: center; color: #888; margin-top: 30px;">No se encontraron usuarios.</p>';
+                return;
+            }
+
+            data.results.forEach(user => {
+                const item = document.createElement('div');
+                item.className = 'contact-item';
+                item.style.cssText = 'padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; display: flex; align-items: center; justify-content: space-between;';
+                item.onclick = () => openChat(user.phone_number);
+
+                item.innerHTML = `
+                    <div>
+                        <b style="display: block;">${user.name}</b>
+                        <span style="font-size: 0.85rem; opacity: 0.7;">${user.phone_number}</span>
+                    </div>
+                `;
+                listContainer.appendChild(item);
+            });
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
 </script>
 
 </body>
