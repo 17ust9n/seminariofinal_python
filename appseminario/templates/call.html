@@ -4,34 +4,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Starssenger{% endblock %}</title>
+    <title>{% block title %}Starssenger - Llamada{% endblock %}</title>
 
     <!-- CSS principal -->
     <link rel="stylesheet" href="{% static 'estilos.css' %}?v=123">
 
-    {% block extra_head %}
-    {% endblock %}
+    {% block extra_head %}{% endblock %}
 </head>
 
 <body>
-  <div id="call" style="display: flex;">
-    <div id="grid"></div>
-    <div id="voiceface">
+  <!-- Contenedor Principal de la Llamada -->
+  <div id="call" class="screen call-screen">
+    <div id="grid" class="call-grid"></div>
+    
+    <div id="voiceface" class="voice-face">
       <div class="vfav" id="vfAv"></div>
-      <div id="vfName"></div>
-      <div id="vfState"></div>
+      <div id="vfName" class="vf-name"></div>
+      <div id="vfState" class="vf-state"></div>
     </div>
-    <div id="audios" style="display:none"></div>
-    <div id="callkeys"></div>
-    <button id="addcall" onclick="openInvite()" title="Sumar a la llamada" aria-label="Sumar a la llamada">＋</button>
-    <button id="hang" onclick="hangup()">Colgar</button>
+    
+    <!-- Streams de Audio Ocultos -->
+    <div id="audios" class="hidden-audios"></div>
+    
+    <!-- Teclado / Acciones rápidas en llamada -->
+    <div id="callkeys" class="call-keys"></div>
+    
+    <!-- Acciones principales -->
+    <div class="call-actions">
+      <button id="addcall" class="btn-call-action add" title="Sumar a la llamada" aria-label="Sumar a la llamada">＋</button>
+      <button id="hang" class="btn-call-action hang">Colgar</button>
+    </div>
   </div>
 
-  <div id="incall">
-    📹 <b id="icName"></b>
+  <!-- Banner / Modal de Llamada Entrante -->
+  <div id="incall" class="incall-banner">
+    <div class="incall-info">
+      <span class="incall-icon">📹</span>
+      <b id="icName"></b>
+    </div>
     <span class="sp"></span>
-    <button class="dec" onclick="declineCall()">Rechazar</button>
-    <button class="acc" onclick="answerCall()">Contestar</button>
+    <div class="incall-buttons">
+      <button id="btnDecline" class="btn dec" onclick="declineCall()">Rechazar</button>
+      <button id="btnAnswer" class="btn acc" onclick="answerCall()">Contestar</button>
+    </div>
   </div>
 
 {% block extra_js %}
@@ -40,17 +55,39 @@
   document.addEventListener('DOMContentLoaded', function() {
     const hangBtn = document.getElementById('hang');
     const addCallBtn = document.getElementById('addcall');
+    const callScreen = document.getElementById('call');
+    const incallBanner = document.getElementById('incall');
 
-    // 1. Control de botones de la llamada
+    // 1. Asignación limpia de listeners
     if (hangBtn) hangBtn.addEventListener('click', hangup);
     if (addCallBtn) addCallBtn.addEventListener('click', openInvite);
 
-    // 2. Si hay una llamada pendiente entrante, mostrar notificación
-    if (pendingCall) {
+    // 2. Control de llamada entrante usando la clase .on de estilos.css
+    if (typeof pendingCall !== 'undefined' && pendingCall) {
       const icName = document.getElementById('icName');
-      if (icName) icName.textContent = nameFor(pendingCall.from);
-      document.getElementById('incall').style.display = 'flex';
+      if (icName) {
+        icName.textContent = typeof nameFor === 'function' ? nameFor(pendingCall.from) : pendingCall.from;
+      }
+      if (incallBanner) incallBanner.classList.add('on');
     }
   });
+
+  // Funciones fallback de seguridad en caso de que la librería WebRTC aún no cargue
+  function hangup() {
+    const callScreen = document.getElementById('call');
+    if (callScreen) callScreen.classList.remove('on');
+    console.log("Llamada finalizada");
+  }
+
+  function openInvite() {
+    if (typeof openModal === 'function') {
+      openModal('mInvite');
+    } else {
+      const mInvite = document.getElementById('mInvite');
+      if (mInvite) mInvite.classList.add('on');
+    }
+  }
 </script>
 {% endblock %}
+</body>
+</html>

@@ -7,42 +7,89 @@
     <title>{% block title %}Starssenger{% endblock %}</title>
 
     <!-- CSS principal -->
-    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=123">
+    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=125">
 
     {% block extra_head %}{% endblock %}
 </head>
 
 <body>
 
-<!-- MODAL: add contact -->
-<div id="mContact" class="modal"><div class="card">
-  <h3>Nuevo contacto</h3>
-  <label>Nombre</label>
-  <input id="cName" placeholder="Marito">
-  <label>Número (con código de país)</label>
-  <input id="cNum" inputmode="numeric" placeholder="5491145289012">
-  <button class="btn ghost" id="cImport" style="margin-top:12px;display:none" onclick="importContact()">📇 Importar de mis contactos</button>
-  <div class="mrow"><button class="btn ghost" onclick="closeModal('mContact')">Cancelar</button><button class="btn" onclick="saveContact()">Guardar</button></div>
-  <p class="tag" id="cErr" style="color:#e28"></p>
-</div></div>
+<div class="wrap">
+    {% block content %}
+    <!-- Aquí se inyecta el contenido de cada pantalla individual -->
+    {% endblock %}
+</div>
 
-<!-- MODAL: new group -->
-<div id="mGroup" class="modal"><div class="card">
-  <h3>Nuevo grupo</h3>
-  <label>Nombre del grupo</label>
-  <input id="gName" placeholder="SpaceAI socios">
-  <label>Miembros</label>
-  <div class="picklist" id="gPick"></div>
-  <div class="mrow"><button class="btn ghost" onclick="closeModal('mGroup')">Cancelar</button><button class="btn" onclick="saveGroup()">Crear</button></div>
-  <p class="tag" id="gErr" style="color:#e28"></p>
-</div></div>
+<!-- MODAL: Agregar / Editar contacto -->
+<div id="mContact" class="modal">
+    <div class="card">
+        <h3>Nuevo contacto</h3>
+        
+        <label for="cName">Nombre</label>
+        <input id="cName" placeholder="Marito">
+        
+        <label for="cNum">Número (con código de país)</label>
+        <input id="cNum" inputmode="numeric" placeholder="5491145289012">
+        
+        <button class="btn ghost" id="cImport" style="margin-top: 12px; display: none;" onclick="importContact()">
+            📇 Importar de mis contactos
+        </button>
+        
+        <div class="mrow">
+            <button class="btn ghost" onclick="closeModal('mContact')">Cancelar</button>
+            <button class="btn" onclick="saveContact()">Guardar</button>
+        </div>
+        
+        <p class="tag" id="cErr" style="color: var(--red); font-weight: 600; text-align: center; margin-top: 10px;"></p>
+    </div>
+</div>
 
-<!-- MODAL: invitar a la llamada -->
-<div id="mInvite" class="modal"><div class="card">
-  <h3>Sumar a la llamada</h3>
-  <p class="tag">Elegí a quién invitar. Le va a sonar y, si atiende, se suma.</p>
-  <div class="picklist" id="iPick"></div>
-  <div class="mrow"><button class="btn ghost" onclick="closeModal('mInvite')">Cancelar</button><button class="btn" onclick="doInvite()">Invitar</button></div>
-</div></div>
+<!-- MODAL: Crear nuevo grupo -->
+<div id="mGroup" class="modal">
+    <div class="card">
+        <h3>Nuevo grupo</h3>
+        
+        <label for="gName">Nombre del grupo</label>
+        <input id="gName" placeholder="SpaceAI socios">
+        
+        <label>Miembros</label>
+        <div class="picklist" id="gPick"></div>
+        
+        <div class="mrow">
+            <button class="btn ghost" onclick="closeModal('mGroup')">Cancelar</button>
+            <button class="btn" onclick="saveGroup()">Crear</button>
+        </div>
+        
+        <p class="tag" id="gErr" style="color: var(--red); font-weight: 600; text-align: center; margin-top: 10px;"></p>
+    </div>
+</div>
+
+<!-- MODAL: Invitar a la llamada -->
+<div id="mInvite" class="modal">
+    <div class="card">
+        <h3>Sumar a la llamada</h3>
+        <p class="tag" style="margin-bottom: 12px;">Elegí a quién invitar. Le va a sonar y, si atiende, se suma.</p>
+        
+        <div class="picklist" id="iPick"></div>
+        
+        <div class="mrow">
+            <button class="btn ghost" onclick="closeModal('mInvite')">Cancelar</button>
+            <button class="btn" onclick="doInvite()">Invitar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function openModal(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('on');
+}
+
+function closeModal(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('on');
+}
+</script>
 
 </body>
+</html>

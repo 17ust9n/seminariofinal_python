@@ -16,60 +16,79 @@
 </head>
 <body>
 
-<main>
-  <div id="chatScreen" class="screen on">
-    <header style="display: flex; align-items: center; gap: 10px; padding: 10px 16px;">
-    <!-- En lugar de onclick="goBack()" con tags de Django, usa history.back() o la ruta directa -->
-    <button class="back" onclick="goBack()" title="Volver" aria-label="Atrás" style="background: none; border: none; font-size: 1.5rem; color: inherit; cursor: pointer;">←</button>
-      
-      <div class="av" id="chAv" style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-weight: bold;"></div>
-      
-    <div style="flex:1; min-width:0">
-        <div style="font-weight:600; font-size:16px" id="chName">{{ display_name }}</div>
-        <div class="chsub" id="chSub" style="font-size:0.8rem; opacity:0.7;">En línea</div>
-    </div>
-      
-      <div class="headbtns" style="display: flex; gap: 8px;">
-        <button class="callbtn" onclick="startCall('audio')" title="Llamada de voz" aria-label="Llamada de voz" style="background: none; border: none; color: inherit; cursor: pointer;"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M6.6 10.8c1.4 2.8 3.8 5.2 6.6 6.6l2.2-2.2c.28-.28.68-.36 1.02-.24 1.1.36 2.28.56 3.48.56.55 0 1 .45 1 1V20c0 .55-.45 1-1 1C10.4 21 3 13.6 3 4.5c0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.2.2 2.38.56 3.48.12.34.04.74-.24 1.02z"/></svg></button>
-        <button class="callbtn" onclick="startCall('video')" title="Videollamada" aria-label="Videollamada" style="background: none; border: none; color: inherit; cursor: pointer;"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><rect x="2" y="6" width="13" height="12" rx="2.5"/><path d="M17 10l4.1-2.35c.5-.29 1.12.07 1.12.65v7.4c0 .58-.62.94-1.12.65L17 14z"/></svg></button>
-      </div>
-    </header>
+<main class="wrap">
+    <div id="chatScreen" class="screen on">
+        <!-- Encabezado del Chat -->
+        <header class="chat-header">
+            <button class="back" onclick="goBack()" title="Volver" aria-label="Atrás">←</button>
+            
+            <div class="av" id="chAv">
+                {% if display_name %}{{ display_name|first|upper }}{% else %}U{% endif %}
+            </div>
+            
+            <div class="chat-info">
+                <div class="chname" id="chName">{{ display_name }}</div>
+                <div class="chsub" id="chSub">En línea</div>
+            </div>
+            
+            <div class="headbtns">
+                <button class="callbtn" onclick="startCall('audio')" title="Llamada de voz" aria-label="Llamada de voz">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                        <path d="M6.6 10.8c1.4 2.8 3.8 5.2 6.6 6.6l2.2-2.2c.28-.28.68-.36 1.02-.24 1.1.36 2.28.56 3.48.56.55 0 1 .45 1 1V20c0 .55-.45 1-1 1C10.4 21 3 13.6 3 4.5c0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.2.2 2.38.56 3.48.12.34.04.74-.24 1.02z"/>
+                    </svg>
+                </button>
+                <button class="callbtn" onclick="startCall('video')" title="Videollamada" aria-label="Videollamada">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                        <rect x="2" y="6" width="13" height="12" rx="2.5"/>
+                        <path d="M17 10l4.1-2.35c.5-.29 1.12.07 1.12.65v7.4c0 .58-.62.94-1.12.65L17 14z"/>
+                    </svg>
+                </button>
+            </div>
+        </header>
 
-   <!-- Contenedor del chat con historial cargado desde Django -->
-<div id="chat" style="padding: 16px; overflow-y: auto; height: calc(100vh - 130px); display: flex; flex-direction: column; gap: 10px;">
-  {% for message in messages %}
-    <div data-id="{{ message.id }}" style="align-self: {% if message.sender == request.user %}flex-end{% else %}flex-start{% endif %}; background: {% if message.sender == request.user %}#0084ff{% else %}#26262b{% endif %}; color: #fff; padding: 10px 14px; border-radius: {% if message.sender == request.user %}18px 18px 2px 18px{% else %}18px 18px 18px 2px{% endif %}; max-width: 75%; word-break: break-word;">
-      {% if message.msg_type == 'audio' %}
-        <audio controls preload="auto" src="{{ message.audio_file.url }}"></audio>
-      {% else %}
-        {{ message.content }}
-      {% endif %}
-    </div>
-  {% endfor %}
-</div>
+        <!-- Historial de Conversación -->
+        <div id="chat" class="chat-body">
+            {% for message in messages %}
+                <div data-id="{{ message.id }}" class="msg {% if message.sender == request.user %}my{% endif %}">
+                    {% if message.msg_type == 'audio' %}
+                        <audio controls preload="auto" src="{{ message.audio_file.url }}"></audio>
+                    {% else %}
+                        {{ message.content }}
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
 
-    <div id="bar" style="display: flex; align-items: center; padding: 10px; gap: 8px;">
-      <input id="txt" placeholder="Mensaje cifrado…" oninput="toggleBarBtns()" onkeydown="if(event.key==='Enter')send()" style="flex: 1; padding: 10px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: #fff;">
-      
-      <!-- Botón de Micrófono -->
-      <button id="micBtn" onclick="toggleRec()" title="Mensaje de voz" aria-label="Mensaje de voz" style="background: none; border: none; color: inherit; cursor: pointer; display: block;"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z"/><path d="M6 11a6 6 0 0 0 12 0h-1.6a4.4 4.4 0 0 1-8.8 0zM11.2 17.3V21h1.6v-3.7z"/></svg></button>
-      
-      <!-- Botón de Enviar (Oculto por defecto) -->
-      <button id="sendBtn" onclick="send()" style="display: none; background: #0084ff; border: none; border-radius: 50%; width: 36px; height: 36px; color: #fff; cursor: pointer; align-items: center; justify-content: center; font-size: 16px;">➤</button>
+        <!-- Barra inferior de entrada -->
+        <div id="bar" class="bar">
+            <input id="txt" placeholder="Mensaje cifrado…" oninput="toggleBarBtns()" onkeydown="if(event.key==='Enter')send()">
+            
+            <!-- Botón de Micrófono -->
+            <button id="micBtn" class="action-btn" onclick="toggleRec()" title="Mensaje de voz" aria-label="Mensaje de voz">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                    <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z"/>
+                    <path d="M6 11a6 6 0 0 0 12 0h-1.6a4.4 4.4 0 0 1-8.8 0zM11.2 17.3V21h1.6v-3.7z"/>
+                </svg>
+            </button>
+            
+            <!-- Botón de Enviar (Oculto por defecto) -->
+            <button id="sendBtn" class="action-btn send-btn" onclick="send()" style="display: none;">➤</button>
+        </div>
     </div>
-  </div>
 </main>
 
-<!-- Modal para Gestionar Llamadas / Videollamadas -->
-<div id="callModal" class="call-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); flex-direction: column; align-items: center; justify-content: center; z-index: 1000; padding: 20px;">
-  <h2 id="callTitle" style="color: #fff; margin-bottom: 5px;">Llamando...</h2>
-  <p id="callStatus" style="color: rgba(255,255,255,0.7); margin-bottom: 15px;">Estableciendo conexión...</p>
+<!-- Modal de Llamadas -->
+<div id="callModal" class="modal call-modal">
+    <div class="card call-card">
+        <h2 id="callTitle">Llamando...</h2>
+        <p id="callStatus" class="tag">Estableciendo conexión...</p>
 
-  <video id="localVideo" autoplay playsinline muted style="width: 100%; max-width: 320px; height: 240px; background: #000; border-radius: 12px; display: none; object-fit: cover; margin-bottom: 20px;"></video>
+        <video id="localVideo" autoplay playsinline muted class="call-video" style="display: none;"></video>
 
-  <div class="call-actions">
-    <button class="btn-end-call" onclick="endCall()" style="background: #ff4d4d; color: #fff; border: none; padding: 12px 28px; border-radius: 25px; font-weight: bold; cursor: pointer;">Finalizar</button>
-  </div>
+        <div class="mrow" style="justify-content: center; margin-top: 16px;">
+            <button class="btn btn-danger" onclick="endCall()">Finalizar</button>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -87,14 +106,12 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('chAv').textContent = contactName.charAt(0).toUpperCase();
     }
 
-    // Llevar el scroll al final para ver los mensajes cargados por Django
     const chat = document.getElementById('chat');
     if (chat) {
         chat.scrollTop = chat.scrollHeight;
     }
 });
 
-// Usar el historial del navegador para volver
 function goBack() {
     if (document.referrer) {
         window.location.href = document.referrer;
@@ -103,7 +120,6 @@ function goBack() {
     }
 }
 
-// Alternar entre Micrófono y Botón de Enviar
 function toggleBarBtns() {
     const txtInput = document.getElementById('txt');
     const micBtn = document.getElementById('micBtn');
@@ -118,7 +134,6 @@ function toggleBarBtns() {
     }
 }
 
-// Enviar Mensajes de Texto y guardarlos en BD vía AJAX
 async function send() {
     const txtInput = document.getElementById('txt');
     const message = txtInput.value.trim();
@@ -149,7 +164,6 @@ async function send() {
     }
 }
 
-// Grabar y Enviar Mensajes de Voz guardándolos en BD vía AJAX
 async function toggleRec() {
     const micBtn = document.getElementById('micBtn');
 
@@ -166,7 +180,7 @@ async function toggleRec() {
 
             recorder.startRecording();
             isRecording = true;
-            micBtn.style.color = '#ff4d4d';
+            micBtn.style.color = 'var(--red, #ff4d4d)';
 
         } catch (err) {
             console.error("Error al acceder al micrófono:", err);
@@ -208,7 +222,6 @@ async function toggleRec() {
     }
 }
 
-// Iniciar Llamada o Videollamada
 async function startCall(type) {
     const modal = document.getElementById('callModal');
     const title = document.getElementById('callTitle');
@@ -220,7 +233,7 @@ async function startCall(type) {
 
     title.textContent = isVideo ? `Videollamada con ${recipientName}` : `Llamada con ${recipientName}`;
     status.textContent = "Conectando...";
-    modal.style.display = 'flex';
+    modal.classList.add('on');
 
     try {
         callStream = await navigator.mediaDevices.getUserMedia({
@@ -254,21 +267,14 @@ function endCall() {
     }
 
     videoElem.srcObject = null;
-    modal.style.display = 'none';
+    modal.classList.remove('on');
 }
 
-// Renderizar Mensajes nuevos en Pantalla
 function appendMessage(type, contentUrlOrText, msgId = null) {
     const chat = document.getElementById('chat');
     const msgDiv = document.createElement('div');
 
-    msgDiv.style.alignSelf = 'flex-end';
-    msgDiv.style.background = '#0084ff';
-    msgDiv.style.color = '#fff';
-    msgDiv.style.padding = '10px 14px';
-    msgDiv.style.borderRadius = '18px 18px 2px 18px';
-    msgDiv.style.maxWidth = '75%';
-    msgDiv.style.wordBreak = 'break-word';
+    msgDiv.className = 'msg my';
 
     if (type === 'text') {
         msgDiv.textContent = contentUrlOrText;

@@ -1,5 +1,5 @@
 """
-Django settings for infosuper project.
+Django settings for infoseminario project.
 """
 
 import os

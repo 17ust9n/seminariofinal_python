@@ -7,28 +7,40 @@
     <title>{% block title %}Starssenger - Onboarding{% endblock %}</title>
 
     <!-- CSS principal -->
-    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=123">
+    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=125">
 
     {% block extra_head %}{% endblock %}
 </head>
 
 <body>
-<div id="onboard" class="screen on">
-  <img class="biglogo" id="lg1" src="{% static 'Starssenger.png' %}" alt="Starssenger Logo">
-  <p class="tag" style="text-align:center">Mensajería cifrada extremo a extremo. La clave sale de los números — no viaja. Solo viaja el mensaje cifrado.</p>
-  
-  <label for="me">Tu número (con código de país)</label>
-  <input id="me" inputmode="numeric" placeholder="5491137824591" autofocus>
-  
-  <label>Seguridad</label>
-  <div class="seg">
-    <button id="sOff" class="act" type="button" onclick="setSec(0)">🔓 Normal</button>
-    <button id="sOn" type="button" onclick="setSec(1)">🛡️ Blindado</button>
-  </div>
-  
-  <p class="tag">🛡️ Blindado: los mensajes se borran solos a los 45s y no se guarda nada en el teléfono. Menos rastro para un spyware.</p>
-  <button class="btn" style="margin-top:18px" type="button" onclick="saveMe()">Entrar</button>
-  <p class="tag" id="oerr" style="color:#e28"></p>
+<div class="wrap">
+    <div id="onboard" class="screen on">
+        <!-- Logo principal -->
+        <img class="biglogo" id="lg1" src="{% static 'logo/Starssenger.png' %}" alt="Starssenger Logo">
+        
+        <p class="tag" style="text-align: center;">
+            Mensajería cifrada extremo a extremo. La clave sale de los números — no viaja. Solo viaja el mensaje cifrado.
+        </p>
+        
+        <!-- Formulario de ingreso -->
+        <label for="me">Tu número (con código de país)</label>
+        <input id="me" inputmode="numeric" placeholder="5491137824591" autofocus>
+        
+        <label>Seguridad</label>
+        <div class="seg">
+            <button id="sOff" class="act" type="button" onclick="setSec(0)">🔓 Normal</button>
+            <button id="sOn" type="button" onclick="setSec(1)">🛡️ Blindado</button>
+        </div>
+        
+        <p class="tag" style="margin-top: 10px;">
+            🛡️ Blindado: los mensajes se borran solos a los 45s y no se guarda nada en el teléfono. Menos rastro para un spyware.
+        </p>
+
+        <button class="btn" style="margin-top: 22px;" type="button" onclick="saveMe()">Entrar</button>
+        
+        <!-- Mensaje de error ajustado con var(--red) -->
+        <p class="tag" id="oerr" style="color: var(--red); margin-top: 10px; font-weight: 600; text-align: center;"></p>
+    </div>
 </div>
 
 <script>
@@ -52,11 +64,11 @@
       return;
     }
     
-    // Guardar en el teléfono
+    // Guardar en el navegador
     localStorage.setItem('sp_me', n);
     localStorage.setItem('sp_secure', SECURE ? '1' : '0');
     
-    // Ir a la vista principal
+    // Ir a la vista principal de Django
     window.location.href = "{% url 'home' %}";
   }
 </script>
