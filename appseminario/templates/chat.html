@@ -9,6 +9,9 @@
     <!-- CSS principal -->
     <link rel="stylesheet" href="{% static 'estilos.css' %}?v=123">
 
+    <!-- Librería Libsodium -->
+    <script src="https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.7.13/dist/browsers/sodium.js" async></script>
+
     <!-- Librería externa RecordRTC -->
     <script src="https://cdn.webrtc-experiment.com/RecordRTC.js"></script>
 
@@ -53,7 +56,8 @@
                     {% if message.msg_type == 'audio' %}
                         <audio controls preload="auto" src="{{ message.audio_file.url }}"></audio>
                     {% else %}
-                        {{ message.content }}
+                        <!-- El contenido cifrado inicial se renderiza temporalmente en un span para ser descifrado por JS -->
+                        <span class="encrypted-content">{{ message.content }}</span>
                     {% endif %}
                 </div>
             {% endfor %}
@@ -96,8 +100,13 @@ let recorder = null;
 let isRecording = false;
 let callStream = null;
 
-// Cargar información y scroll automático al abrir la página
-document.addEventListener('DOMContentLoaded', function() {
+// Clave pública del destinatario inyectada desde Django
+const RECIPIENT_PUBKEY_BASE64 = "{{ recipient_public_key|default:'' }}";
+
+document.addEventListener('DOMContentLoaded', async function() {
+    // Inicializar Libsodium
+    await sodium.ready;
+
     const urlParams = new URLSearchParams(window.location.search);
     const contactName = urlParams.get('name');
     
@@ -105,6 +114,9 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('chName').textContent = contactName;
         document.getElementById('chAv').textContent = contactName.charAt(0).toUpperCase();
     }
+
+    // Descifrar historial de mensajes
+    decryptHistory();
 
     const chat = document.getElementById('chat');
     if (chat) {
@@ -134,25 +146,92 @@ function toggleBarBtns() {
     }
 }
 
+/**
+ * Cifra un texto utilizando Libsodium (crypto_box_easy)
+ */
+function encryptText(plainText) {
+    if (!RECIPIENT_PUBKEY_BASE64) {
+        console.warn("No hay clave pública del receptor. El mensaje se enviará sin cifrar.");
+        return plainText;
+    }
+
+    const myPrivateKeyBase64 = localStorage.getItem('sodium_private_key');
+    if (!myPrivateKeyBase64) {
+        console.error("No se encontró la clave privada local.");
+        return plainText;
+    }
+
+    const recipientPubKey = sodium.from_base64(RECIPIENT_PUBKEY_BASE64, sodium.base64_variants.ORIGINAL);
+    const myPrivateKey = sodium.from_base64(myPrivateKeyBase64, sodium.base64_variants.ORIGINAL);
+
+    const nonce = sodium.randombytes_buf(sodium.crypto_box_NONCEBYTES);
+    const ciphertext = sodium.crypto_box_easy(plainText, nonce, recipientPubKey, myPrivateKey);
+
+    const nonceB64 = sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL);
+    const ciphertextB64 = sodium.to_base64(ciphertext, sodium.base64_variants.ORIGINAL);
+
+    return `${nonceB64}:${ciphertextB64}`;
+}
+
+/**
+ * Descifra un mensaje cifrado con el formato nonce:ciphertext
+ */
+function decryptText(encryptedPayload) {
+    if (!encryptedPayload.includes(':')) {
+        return encryptedPayload; // Retorna directo si es texto plano legacy
+    }
+
+    try {
+        const myPrivateKeyBase64 = localStorage.getItem('sodium_private_key');
+        if (!myPrivateKeyBase64 || !RECIPIENT_PUBKEY_BASE64) return encryptedPayload;
+
+        const myPrivateKey = sodium.from_base64(myPrivateKeyBase64, sodium.base64_variants.ORIGINAL);
+        const recipientPubKey = sodium.from_base64(RECIPIENT_PUBKEY_BASE64, sodium.base64_variants.ORIGINAL);
+
+        const parts = encryptedPayload.split(':');
+        const nonce = sodium.from_base64(parts[0], sodium.base64_variants.ORIGINAL);
+        const ciphertext = sodium.from_base64(parts[1], sodium.base64_variants.ORIGINAL);
+
+        const decrypted = sodium.crypto_box_open_easy(ciphertext, nonce, recipientPubKey, myPrivateKey);
+        return sodium.to_string(decrypted);
+    } catch (e) {
+        console.error("Error al descifrar mensaje:", e);
+        return "[Mensaje cifrado no se pudo descifrar]";
+    }
+}
+
+function decryptHistory() {
+    const encryptedElements = document.querySelectorAll('.encrypted-content');
+    encryptedElements.forEach(el => {
+        const rawText = el.textContent.trim();
+        el.textContent = decryptText(rawText);
+    });
+}
+
 async function send() {
     const txtInput = document.getElementById('txt');
     const message = txtInput.value.trim();
 
     if (message) {
+        const encryptedContent = encryptText(message);
+
         const formData = new FormData();
         formData.append('conversation_id', '{{ conversation.id }}');
         formData.append('msg_type', 'text');
-        formData.append('content', message);
+        formData.append('content', encryptedContent);
 
         try {
             const response = await fetch("{% url 'send_message_api' %}", {
                 method: 'POST',
-                body: formData
+                body: formData,
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
             });
 
             const data = await response.json();
             if (data.status === 'success') {
-                appendMessage('text', data.content, data.message_id);
+                appendMessage('text', message, data.message_id);
                 txtInput.value = '';
                 toggleBarBtns();
             } else {
@@ -203,7 +282,10 @@ async function toggleRec() {
             try {
                 const response = await fetch("{% url 'send_message_api' %}", {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
                 });
 
                 const data = await response.json();

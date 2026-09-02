@@ -44,7 +44,10 @@ class Conversation(models.Model):
     name = models.CharField(max_length=100, blank=True, null=True, help_text="Nombre del grupo (#gName) en caso de ser chat grupal")
     is_group = models.BooleanField(default=False)
     participants = models.ManyToManyField(User, related_name='conversations', help_text="Miembros seleccionados (#gPick)")
-    created_by = models.ForeignKey(User, on_delete=SET_NULL if False else models.SET_NULL, null=True, related_name='created_groups')
+    
+    # LÍNEA CORREGIDA:
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_groups')
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

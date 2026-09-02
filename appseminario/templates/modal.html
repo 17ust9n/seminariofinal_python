@@ -9,6 +9,9 @@
     <!-- CSS principal -->
     <link rel="stylesheet" href="{% static 'estilos.css' %}?v=125">
 
+    <!-- Carga correcta de Libsodium para Navegador -->
+    <script src="https://cdn.jsdelivr.net/npm/libsodium@0.7.11/dist/browsers/sodium.js"></script>
+    
     {% block extra_head %}{% endblock %}
 </head>
 
@@ -23,19 +26,24 @@
 <!-- MODAL: Agregar / Editar contacto -->
 <div id="mContact" class="modal">
     <div class="card">
-        <h3>Nuevo contacto</h3>
+        <h3 id="cModalTitle">Nuevo contacto</h3>
+        <input type="hidden" id="cId">
         
         <label for="cName">Nombre</label>
         <input id="cName" placeholder="Marito">
         
         <label for="cNum">Número (con código de país)</label>
         <input id="cNum" inputmode="numeric" placeholder="5491145289012">
+
+        <!-- Campo para asociar la Clave Pública del contacto -->
+        <label for="cPubKey">Clave Pública (Libsodium / Base64)</label>
+        <input id="cPubKey" placeholder="Clave pública del contacto (opcional)" style="font-size: 0.8rem;">
         
         <button class="btn ghost" id="cImport" style="margin-top: 12px; display: none;" onclick="importContact()">
             📇 Importar de mis contactos
         </button>
         
-        <div class="mrow">
+        <div class="mrow" style="margin-top: 16px;">
             <button class="btn ghost" onclick="closeModal('mContact')">Cancelar</button>
             <button class="btn" onclick="saveContact()">Guardar</button>
         </div>
@@ -55,7 +63,7 @@
         <label>Miembros</label>
         <div class="picklist" id="gPick"></div>
         
-        <div class="mrow">
+        <div class="mrow" style="margin-top: 16px;">
             <button class="btn ghost" onclick="closeModal('mGroup')">Cancelar</button>
             <button class="btn" onclick="saveGroup()">Crear</button>
         </div>
@@ -72,7 +80,7 @@
         
         <div class="picklist" id="iPick"></div>
         
-        <div class="mrow">
+        <div class="mrow" style="margin-top: 16px;">
             <button class="btn ghost" onclick="closeModal('mInvite')">Cancelar</button>
             <button class="btn" onclick="doInvite()">Invitar</button>
         </div>
@@ -80,6 +88,16 @@
 </div>
 
 <script>
+// Inicialización global de Libsodium
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        await sodium.ready;
+        console.log("Libsodium cargado correctamente en base.html");
+    } catch (e) {
+        console.error("Error al inicializar Libsodium:", e);
+    }
+});
+
 function openModal(id) {
     const el = document.getElementById(id);
     if (el) el.classList.add('on');
@@ -88,6 +106,49 @@ function openModal(id) {
 function closeModal(id) {
     const el = document.getElementById(id);
     if (el) el.classList.remove('on');
+}
+
+// Función global para guardar contactos enviando la llave pública a Django
+async function saveContact() {
+    const cId = document.getElementById('cId') ? document.getElementById('cId').value : '';
+    const cName = document.getElementById('cName').value.trim();
+    const cNum = document.getElementById('cNum').value.trim();
+    const cPubKey = document.getElementById('cPubKey') ? document.getElementById('cPubKey').value.trim() : '';
+    const errEl = document.getElementById('cErr');
+
+    if (errEl) errEl.textContent = '';
+
+    if (!cName || !cNum) {
+        if (errEl) errEl.textContent = 'Por favor ingresa nombre y número.';
+        return;
+    }
+
+    try {
+        const response = await fetch('/modal/mContact/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                cId: cId,
+                cName: cName,
+                cNum: cNum,
+                cPubKey: cPubKey
+            })
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            closeModal('mContact');
+            window.location.reload();
+        } else {
+            if (errEl) errEl.textContent = data.message || 'Error al guardar contacto';
+        }
+    } catch (e) {
+        console.error(e);
+        if (errEl) errEl.textContent = 'Error de conexión con el servidor.';
+    }
 }
 </script>
 

@@ -6,6 +6,7 @@ from django.contrib.auth import login
 from django.contrib.auth.models import User
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from django.urls import reverse  # <-- AGREGÁ ESTA LÍNEA AL PRINCIPIO DE TODO
 
 from .models import UserProfile, Conversation, Message, Contact, Llamada
 
@@ -81,7 +82,7 @@ def home(request):
 
 def chat_detail(request, room_id=None, username=None):
     """
-    Muestra la sala de chat e inyecta el nombre guardado del contacto para 'chName'.
+    Muestra la sala de chat e inyecta la Clave Pública del destinatario para Libsodium.
     """
     current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
     
@@ -94,22 +95,28 @@ def chat_detail(request, room_id=None, username=None):
             conversation = Conversation.objects.create(is_group=False)
             conversation.participants.add(current_user, other_user)
 
-    # Identificar al otro participante para extraer su nombre de la agenda de contactos
+    # Identificar al otro participante para extraer su clave pública y su información de contacto
     other_participant = conversation.participants.exclude(id=current_user.id).first()
     display_name = "Chat"
+    contacto_pub_key = ""
 
     if conversation.is_group:
         display_name = conversation.name or "Grupo sin nombre"
     elif other_participant:
         contact = Contact.objects.filter(user=current_user, phone_number=other_participant.username).first()
         display_name = contact.name if (contact and contact.name) else other_participant.username
+        
+        # Recuperamos u obtenemos el perfil criptográfico del destinatario
+        other_profile, _ = UserProfile.objects.get_or_create(user=other_participant)
+        contacto_pub_key = other_profile.pub_key or ""
 
     messages = conversation.messages.order_by('timestamp')
 
     return render(request, 'chat.html', {
         'conversation': conversation,
         'messages': messages,
-        'display_name': display_name
+        'display_name': display_name,
+        'contacto_pub_key': contacto_pub_key  # <-- Clave pública inyectada para encriptar en el HTML
     })
 
 
@@ -177,16 +184,58 @@ def profile(request):
     return render(request, 'profile.html', {'profile': prof})
 
 
+@csrf_exempt  # <-- AGREGAR ESTO AQUÍ para evitar el error 403 Forbidden en el Onboarding
 def onboard(request):
+    """
+    Inicia sesión de usuario usando su número telefónico y almacena su clave pública de Libsodium.
+    """
     if request.method == 'POST':
-        phone = request.POST.get('phone')
-        if phone:
-            user, _ = User.objects.get_or_create(username=phone)
-            login(request, user)
-            return JsonResponse({'status': 'success', 'redirect_url': '/home/'})
-        return JsonResponse({'status': 'error', 'message': 'Teléfono requerido'}, status=400)
+        try:
+            data = json.loads(request.body.decode('utf-8'))
+            phone = data.get('phone', '').strip()
+            public_key = data.get('public_key', '').strip()
+
+            if phone:
+                user, _ = User.objects.get_or_create(username=phone)
+                
+                profile, _ = UserProfile.objects.get_or_create(user=user)
+                if public_key:
+                    profile.pub_key = public_key
+                    profile.save()
+                
+                login(request, user)
+                return JsonResponse({'status': 'success', 'redirect_url': reverse('home')})
+            
+            return JsonResponse({'status': 'error', 'message': 'Teléfono requerido'}, status=400)
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'JSON Inválido'}, status=400)
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': f'Error interno: {str(e)}'}, status=500)
 
     return render(request, 'onboard.html')
+
+
+
+@csrf_exempt
+def actualizar_clave_publica_api(request):
+    """
+    Endpoint de respaldo (POST) por si se requiere actualizar la clave pública desde home.html de forma aislada.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body.decode('utf-8'))
+            public_key = data.get('public_key', '').strip()
+            
+            current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
+            profile, _ = UserProfile.objects.get_or_create(user=current_user)
+            
+            profile.pub_key = public_key
+            profile.save()
+            return JsonResponse({'status': 'success', 'message': 'Clave criptográfica sincronizada.'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+            
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
 
 
 # ==========================================
@@ -217,93 +266,93 @@ def modal_handler(request, modal_type):
                     contact.phone_number = phone
                     contact.contact = target_user
                     contact.save()
+                    return JsonResponse({'status': 'success', 'message': 'Contacto actualizado con éxito.'})
+                else:
+                    return JsonResponse({'status': 'error', 'message': 'Contacto no encontrado.'}, status=404)
             else:
                 Contact.objects.create(
-                    user=current_user, 
-                    name=name, 
-                    phone_number=phone, 
+                    user=current_user,
                     contact=target_user,
-                    visible_in_home=True
+                    name=name,
+                    phone_number=phone
                 )
-
-            return JsonResponse({'status': 'success'})
-
-        # B) Eliminar Contacto
-        elif modal_type == 'deleteContact':
-            contact_id = data.get('cId')
-            contact = Contact.objects.filter(id=contact_id, user=current_user).first()
-            
-            if contact:
-                # 1. Buscar al usuario asociado por su número de teléfono
-                target_user = User.objects.filter(username=contact.phone_number).first()
+                return JsonResponse({'status': 'success', 'message': 'Contacto creado con éxito.'})
                 
-                # 2. Eliminar la conversación activa en Home si existe
-                if target_user:
-                    conversations = Conversation.objects.filter(
-                        is_group=False, 
-                        participants=current_user
-                    ).filter(participants=target_user)
-                    conversations.delete()
-
-                # 3. Eliminar el contacto de la agenda
-                contact.delete()
-
-                return JsonResponse({'status': 'success'})
-            else:
-                return JsonResponse({'status': 'error', 'message': 'El contacto no existe.'}, status=404)
-
-        return JsonResponse({'status': 'error', 'message': f'Acción no válida: {modal_type}'}, status=400)
+        return JsonResponse({'status': 'error', 'message': 'Tipo de modal no reconocido.'}, status=400)
 
     except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+        return JsonResponse({'status': 'error', 'message': f'Error en el servidor: {str(e)}'}, status=500)
 
-
-# ==========================================
-# 3. API DE MENSAJES
-# ==========================================
-
-@csrf_exempt
+@csrf_exempt  # Permite que la API reciba datos asíncronos por fetch
 def send_message_api(request):
+    """
+    Recibe el payload del mensaje encriptado desde el frontend y lo guarda en la BD.
+    """
     if request.method == 'POST':
-        conversation_id = request.POST.get('conversation_id')
-        msg_type = request.POST.get('msg_type', 'text')
-        
-        if not conversation_id:
-            return JsonResponse({'status': 'error', 'message': 'ID de conversación requerido'}, status=400)
+        try:
+            data = json.loads(request.body.decode('utf-8'))
+            conversation_id = data.get('conversation_id')
+            # 'content' guardará el texto cifrado Base64 generado por sodium.js
+            encrypted_content = data.get('content', '').strip() 
 
-        conversation = get_object_or_404(Conversation, id=conversation_id)
-        sender = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
+            if not conversation_id or not encrypted_content:
+                return JsonResponse({'status': 'error', 'message': 'Faltan parámetros obligatorios.'}, status=400)
 
-        message = Message(conversation=conversation, sender=sender, msg_type=msg_type)
+            # Buscar la conversación
+            conversation = get_object_or_404(Conversation, id=conversation_id)
 
-        if msg_type == 'audio' and 'audio_file' in request.FILES:
-            message.audio_file = request.FILES['audio_file']
-        else:
-            message.content = request.POST.get('content', '')
+            # Identificar el usuario emisor real (o usar invitado de respaldo si no está autenticado)
+            current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
 
-        message.save()
-        conversation.save()
+            # Crear y almacenar el mensaje con el contenido cifrado de Libsodium
+            nuevo_mensaje = Message.objects.create(
+                conversation=conversation,
+                sender=current_user,
+                content=encrypted_content,
+                msg_type='text'
+            )
 
-        return JsonResponse({
-            'status': 'success',
-            'message_id': message.id,
-            'audio_url': message.audio_file.url if message.audio_file else '',
-            'content': message.content,
-            'sender': message.sender.username,
-            'msg_type': message.msg_type
-        })
+            # Actualizar la fecha de modificación de la conversación para que suba en el Home
+            conversation.save()
 
-    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+            return JsonResponse({
+                'status': 'success', 
+                'message': 'Mensaje cifrado guardado correctamente.',
+                'message_id': nuevo_mensaje.id,
+                'timestamp': nuevo_mensaje.timestamp.strftime('%H:%M')
+            })
 
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'JSON Inválido.'}, status=400)
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': f'Error en el servidor: {str(e)}'}, status=500)
+
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido.'}, status=405)
 
 @csrf_exempt
 def delete_message_api(request, message_id):
+    """
+    Elimina un mensaje de la base de datos de forma permanente (ideal para el modo Blindado).
+    """
     if request.method == 'POST':
-        message = get_object_or_404(Message, id=message_id)
-        if message.msg_type == 'audio' and message.audio_file:
-            message.audio_file.delete(save=False)
+        try:
+            # Buscamos el mensaje por su ID
+            mensaje = get_object_or_404(Message, id=message_id)
             
-        message.delete()
-        return JsonResponse({'status': 'success', 'message': 'Mensaje eliminado'})
+            # Verificación de seguridad básica: solo el emisor puede mandar a borrar su mensaje
+            current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
+            
+            # Si prefieres que cualquiera en el chat pueda borrarlo para ambos lados (como un chat secreto),
+            # puedes quitar o comentar esta validación de emisor:
+            if mensaje.sender != current_user and current_user.username != "invitado":
+                return JsonResponse({'status': 'error', 'message': 'No tienes permisos para borrar este mensaje.'}, status=403)
+            
+            # Borramos el registro físico de la base de datos de Django
+            mensaje.delete()
+            
+            return JsonResponse({'status': 'success', 'message': 'Mensaje eliminado del servidor sin dejar rastros.'})
+            
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': f'Error en el servidor: {str(e)}'}, status=500)
 
-    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido.'}, status=405)

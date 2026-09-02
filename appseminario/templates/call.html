@@ -7,20 +7,23 @@
     <title>{% block title %}Starssenger - Llamada{% endblock %}</title>
 
     <!-- CSS principal -->
-    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=123">
+    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=125">
+
+    <!-- Cargamos Libsodium desde CDN (Para cifrado de señalización / WebRTC) -->
+    <script src="https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.7.13/dist/browsers/sodium.js" async></script>
 
     {% block extra_head %}{% endblock %}
 </head>
 
 <body>
   <!-- Contenedor Principal de la Llamada -->
-  <div id="call" class="screen call-screen">
+  <div id="call" class="screen call-screen on">
     <div id="grid" class="call-grid"></div>
     
     <div id="voiceface" class="voice-face">
-      <div class="vfav" id="vfAv"></div>
-      <div id="vfName" class="vf-name"></div>
-      <div id="vfState" class="vf-state"></div>
+      <div class="vfav" id="vfAv">U</div>
+      <div id="vfName" class="vf-name">Conectando...</div>
+      <div id="vfState" class="vf-state">Llamando</div>
     </div>
     
     <!-- Streams de Audio Ocultos -->
@@ -40,7 +43,7 @@
   <div id="incall" class="incall-banner">
     <div class="incall-info">
       <span class="incall-icon">📹</span>
-      <b id="icName"></b>
+      <b id="icName">Llamada entrante...</b>
     </div>
     <span class="sp"></span>
     <div class="incall-buttons">
@@ -52,17 +55,24 @@
 {% block extra_js %}
 <!-- LÓGICA JAVASCRIPT — CALL -->
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('DOMContentLoaded', async function() {
+    // Inicializar Libsodium para el intercambio seguro de señalización WebRTC
+    try {
+      await sodium.ready;
+      console.log("Libsodium cargado en la pantalla de llamada.");
+    } catch (e) {
+      console.error("Error al cargar Libsodium en llamada:", e);
+    }
+
     const hangBtn = document.getElementById('hang');
     const addCallBtn = document.getElementById('addcall');
-    const callScreen = document.getElementById('call');
     const incallBanner = document.getElementById('incall');
 
-    // 1. Asignación limpia de listeners
+    // Asignación de listeners
     if (hangBtn) hangBtn.addEventListener('click', hangup);
     if (addCallBtn) addCallBtn.addEventListener('click', openInvite);
 
-    // 2. Control de llamada entrante usando la clase .on de estilos.css
+    // Control de llamada entrante usando la clase .on de estilos.css
     if (typeof pendingCall !== 'undefined' && pendingCall) {
       const icName = document.getElementById('icName');
       if (icName) {
@@ -72,11 +82,22 @@
     }
   });
 
-  // Funciones fallback de seguridad en caso de que la librería WebRTC aún no cargue
   function hangup() {
     const callScreen = document.getElementById('call');
     if (callScreen) callScreen.classList.remove('on');
-    console.log("Llamada finalizada");
+    
+    // Detener streams WebRTC si existen
+    if (window.localStream) {
+      window.localStream.getTracks().forEach(track => track.stop());
+      window.localStream = null;
+    }
+
+    // Redireccionar al home o cerrar ventana
+    if (document.referrer) {
+      window.location.href = document.referrer;
+    } else {
+      window.location.href = "{% url 'home' %}";
+    }
   }
 
   function openInvite() {
@@ -86,6 +107,23 @@
       const mInvite = document.getElementById('mInvite');
       if (mInvite) mInvite.classList.add('on');
     }
+  }
+
+  function answerCall() {
+    const incallBanner = document.getElementById('incall');
+    if (incallBanner) incallBanner.classList.remove('on');
+    
+    const vfState = document.getElementById('vfState');
+    if (vfState) vfState.textContent = 'En llamada';
+    
+    console.log("Llamada aceptada.");
+  }
+
+  function declineCall() {
+    const incallBanner = document.getElementById('incall');
+    if (incallBanner) incallBanner.classList.remove('on');
+    
+    hangup();
   }
 </script>
 {% endblock %}

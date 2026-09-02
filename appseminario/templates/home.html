@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Starssenger - Inicio</title>
     <link rel="stylesheet" href="{% static 'estilos.css' %}?v=125">
+    
+    <!-- OPTIMIZACIÓN: Cargamos Libsodium de forma local y estable desde tu Django -->
+    <script src="{% static 'js/sodium.js' %}"></script>
 </head>
 <body>
 
@@ -74,6 +77,83 @@
 </div>
 
 <script>
+// --- Integración de Dipsodium / Libsodium ---
+let keyPair = null;
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+async function initCrypto() {
+    if (typeof sodium === 'undefined') {
+        console.log("Esperando que cargue el objeto de Sodium local...");
+        setTimeout(initCrypto, 50);
+        return;
+    }
+
+    await sodium.ready;
+    console.log("Libsodium local cargado correctamente en Home.");
+
+    // CONSISTENCIA: Usamos las mismas variables fijas del onboarding ('sp_privkey' y 'sp_pubkey')
+    let storedPrivateKey = localStorage.getItem("sp_privkey");
+    let storedPublicKey = localStorage.getItem("sp_pubkey");
+
+    if (!storedPrivateKey || !storedPublicKey) {
+        keyPair = sodium.crypto_box_keypair();
+        
+        // CORRECCIÓN CRÍTICA: Cambiado a los métodos estables .to_base64 de la versión web
+        storedPrivateKey = sodium.to_base64(keyPair.privateKey);
+        storedPublicKey = sodium.to_base64(keyPair.publicKey);
+
+        localStorage.setItem("sp_privkey", storedPrivateKey);
+        localStorage.setItem("sp_pubkey", storedPublicKey);
+        
+        console.log("Nuevas claves generadas en el Home.");
+        enviarClavePublicaAlServidor(storedPublicKey);
+    } else {
+        // CORRECCIÓN CRÍTICA: Cambiado a .from_base64 para parsear los strings guardados
+        keyPair = {
+            privateKey: sodium.from_base64(storedPrivateKey),
+            publicKey: sodium.from_base64(storedPublicKey)
+        };
+        console.log("Claves criptográficas sincronizadas con el Onboarding.");
+        
+        // Sincroniza con el endpoint de tu views.py
+        enviarClavePublicaAlServidor(storedPublicKey);
+    }
+}
+
+function enviarClavePublicaAlServidor(pubKeyBase64) {
+    fetch("/actualizar-clave-publica/", { 
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken")
+        },
+        body: JSON.stringify({ public_key: pubKeyBase64 })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error("Error al guardar la llave.");
+        return response.json();
+    })
+    .then(data => console.log("Llave pública guardada en Django:", data))
+    .catch(error => console.error("No se pudo registrar la llave en Django:", error));
+}
+
+window.addEventListener('DOMContentLoaded', initCrypto);
+
+// --- Funciones de Interfaz ---
 function openChat(phone) {
     if (phone) window.location.href = `/chat/?to=${phone}`;
 }
