@@ -1,0 +1,177 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starssenger - Perfil</title>
+
+    <!-- CSS principal -->
+    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=125">
+
+    <!-- Cargamos Libsodium desde CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.7.13/dist/browsers/sodium.js" async></script>
+
+    <style>
+        /* Estilos para el botón de regreso dentro del header */
+        header {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            position: relative;
+        }
+
+        .btn-back {
+            background: none;
+            border: none;
+            color: var(--green-accent, #10b981); /* Verde */
+            font-size: 22px;
+            cursor: pointer;
+            text-decoration: none;
+            margin-right: 12px;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="wrap">
+    <div id="profile" class="screen on">
+        <!-- Header con la flecha verde de regreso a profile -->
+        <header>
+            <a href="{% url 'profile' %}" class="btn-back" title="Volver al Perfil">←</a>
+            <b class="brand">Perfil</b>
+        </header>
+        
+        <!-- Formulario de Perfil -->
+        <div class="prof">
+            <div class="bigav" id="profAv">👤</div>
+
+            <label for="setNum">Tu número (con código de país)</label>
+            <input id="setNum" inputmode="numeric">
+            
+            <!-- Campo para mostrar la Clave Pública de Dipsodium -->
+            <label for="pubKeyDisplay">Tu Clave Pública (Libsodium / X25519)</label>
+            <div style="display: flex; gap: 8px;">
+                <input id="pubKeyDisplay" type="text" readonly style="font-size: 0.75rem; opacity: 0.8;" placeholder="Cargando clave...">
+                <button type="button" class="btn" style="width: auto; padding: 0 12px;" onclick="copyPublicKey()" title="Copiar Clave">📋</button>
+            </div>
+
+            <label style="margin-top: 14px;">Seguridad</label>
+            <div class="seg">
+                <button id="sOff2" type="button" onclick="setSec(0)">🔓 Normal</button>
+                <button id="sOn2" type="button" onclick="setSec(1)">🛡️ Blindado</button>
+            </div>
+
+            <p class="tag" style="margin-top: 8px;">
+                🛡️ Blindado: los mensajes se borran solos a los 45s y no se guarda nada en el teléfono.
+            </p>
+            
+            <button class="btn" style="margin-top: 20px;" type="button" onclick="saveProfile()">Guardar</button>
+            
+            <!-- Botón Cerrar Sesión -->
+            <button class="btn ghost" style="margin-top: 10px; color: var(--red); border-color: var(--red);" type="button" onclick="logout()">
+                Cerrar Sesión
+            </button>
+            
+            <p class="tag" style="margin-top: 24px; text-align: center;">
+                🔐 Mensajería cifrada extremo a extremo con Libsodium (X25519/XSalsa20-Poly1305). Tu clave privada nunca sale de tu navegador.
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- LÓGICA JAVASCRIPT — PERFIL Y CRIPTOGRAFÍA DIPSODIUM -->
+<script>
+  let currentSecureMode = 0; // 0: Normal, 1: Blindado
+
+  document.addEventListener('DOMContentLoaded', async function() {
+    // 1. Unificar claves de localStorage usadas en Onboarding
+    const savedPhone = localStorage.getItem('sp_me') || '{{ request.user.username }}';
+    const savedSecure = localStorage.getItem('sp_secure') || '0';
+
+    const setNum = document.getElementById('setNum');
+    if (setNum && savedPhone) {
+      setNum.value = savedPhone;
+    }
+    
+    setSec(parseInt(savedSecure, 10));
+
+    // 2. Inicializar Libsodium y mostrar la clave pública
+    try {
+      await sodium.ready;
+      let pubKey = localStorage.getItem('sp_pubkey');
+      let privKey = localStorage.getItem('sp_privkey');
+
+      // Si no existen llaves, se generan automáticamente
+      if (!pubKey || !privKey) {
+        const keyPair = sodium.crypto_box_keypair();
+        privKey = sodium.sodium_to_base64(keyPair.privateKey);
+        pubKey = sodium.sodium_to_base64(keyPair.publicKey);
+
+        localStorage.setItem('sp_privkey', privKey);
+        localStorage.setItem('sp_pubkey', pubKey);
+      }
+
+      const pubKeyInput = document.getElementById('pubKeyDisplay');
+      if (pubKeyInput) pubKeyInput.value = pubKey;
+    } catch (e) {
+      console.error("Error al cargar Libsodium:", e);
+    }
+  });
+
+  // --- FUNCIONES DE NAVEGACIÓN GLOBAL ---
+  function goHome() {
+    window.location.href = "{% url 'home' %}";
+  }
+
+  function openProfile() {
+    window.location.href = "{% url 'profile' %}";
+  }
+
+  function logout() {
+    localStorage.clear();
+    window.location.href = "{% url 'onboard' %}";
+  }
+
+  // --- FUNCIONES ESPECÍFICAS DE PERFIL ---
+  function setSec(mode) {
+    currentSecureMode = mode;
+    const btnOff = document.getElementById('sOff2');
+    const btnOn = document.getElementById('sOn2');
+
+    if (btnOff && btnOn) {
+      btnOn.classList.toggle('act', mode === 1);
+      btnOff.classList.toggle('act', mode === 0);
+    }
+  }
+
+  async function saveProfile() {
+    const phoneInput = document.getElementById('setNum');
+    if (!phoneInput || !phoneInput.value.trim()) {
+      alert('Por favor, ingresa un número de teléfono válido.');
+      return;
+    }
+
+    const newPhone = phoneInput.value.trim().replace(/\D/g, '');
+    localStorage.setItem('sp_me', newPhone);
+    localStorage.setItem('sp_secure', currentSecureMode.toString());
+
+    alert('Perfil guardado correctamente.');
+    goHome();
+  }
+
+  function copyPublicKey() {
+    const pubKeyInput = document.getElementById('pubKeyDisplay');
+    if (pubKeyInput && pubKeyInput.value) {
+      navigator.clipboard.writeText(pubKeyInput.value);
+      alert('Clave pública copiada al portapapeles.');
+    }
+  }
+</script>
+
+</body>
+</html>

@@ -110,3 +110,12 @@ def create_or_update_user_profile(sender, instance, created, **kwargs):
     else:
         if hasattr(instance, 'profile'):
             instance.profile.save()
+
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    pub_key = models.TextField(blank=True, default='')
+    security_level = models.IntegerField(default=0)  # 0: Normal, 1: Modo Blindado
+
+    def __str__(self):
+        return f"Perfil de {self.user.username}"

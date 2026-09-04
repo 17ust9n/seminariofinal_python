@@ -1,169 +1,319 @@
-{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Starssenger - Perfil</title>
+    <title>Perfil - Starssenger</title>
+    <style>
+        :root {
+            --navy: #0f172a;
+            --navy2: #1e293b;
+            --navy-card: #1e293b;
+            --green-accent: #10b981;
+            --red-accent: #ef4444;
+            --white: #ffffff;
+            --mut-text: #94a3b8;
+            --line-border: #334155;
+            --nav-item-active: #10b981;
+            --nav-item-inactive: #64748b;
+        }
 
-    <!-- CSS principal -->
-    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=125">
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
 
-    <!-- Cargamos Libsodium desde CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.7.13/dist/browsers/sodium.js" async></script>
+        body {
+            background-color: var(--navy);
+            color: var(--white);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* Toolbar Superior */
+        .toolbar {
+            padding: 16px 24px;
+            background-color: var(--navy);
+            border-bottom: 1px solid var(--line-border);
+            font-size: 18px;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        /* Scrollable Container */
+        .scroll-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            max-width: 500px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Avatar Circular */
+        .profile-picture {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background-color: var(--navy-card);
+            border: 1px solid var(--line-border);
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .profile-picture svg {
+            width: 60px;
+            height: 60px;
+            fill: var(--mut-text);
+        }
+
+        /* Textos de Usuario y Clave */
+        .user-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--white);
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .user-info-box {
+            color: var(--mut-text);
+            font-size: 13px;
+            text-align: center;
+            line-height: 1.5;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            transition: background-color 0.2s;
+            user-select: none;
+        }
+
+        .user-info-box:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .key-code {
+            font-family: monospace;
+            word-break: break-all;
+            color: var(--white);
+        }
+
+        /* Separador */
+        .divider {
+            width: 100%;
+            height: 1px;
+            background-color: var(--line-border);
+            margin: 24px 0;
+        }
+
+        /* Botones de Acción */
+        .btn-action {
+            width: 100%;
+            height: 50px;
+            background: transparent;
+            border: 1px solid var(--line-border);
+            color: var(--white);
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-decoration: none;
+            margin-bottom: 12px;
+            transition: background-color 0.2s;
+        }
+
+        .btn-action:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .btn-danger {
+            background-color: var(--red-accent);
+            border: none;
+            margin-top: 12px;
+            margin-bottom: 0;
+        }
+
+        .btn-danger:hover {
+            background-color: #dc2626;
+        }
+
+        /* Navegación Inferior (BottomNavigationView) */
+        .bottom-nav {
+            background-color: var(--navy2);
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 0;
+            border-top: 1px solid var(--line-border);
+            position: sticky;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--nav-item-inactive);
+            text-decoration: none;
+            font-size: 11px;
+            gap: 4px;
+        }
+
+        .nav-item.active {
+            color: var(--nav-item-active);
+        }
+
+        .nav-item svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        /* Toast Notificación */
+        .toast {
+            visibility: hidden;
+            min-width: 220px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 12px;
+            position: fixed;
+            z-index: 100;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 13px;
+        }
+
+        .toast.show {
+            visibility: visible;
+            animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        }
+
+        @keyframes fadein {
+            from { bottom: 50px; opacity: 0; }
+            to { bottom: 80px; opacity: 1; }
+        }
+
+        @keyframes fadeout {
+            from { bottom: 80px; opacity: 1; }
+            to { bottom: 50px; opacity: 0; }
+        }
+    </style>
 </head>
-
 <body>
 
-<div class="wrap">
-    <div id="profile" class="screen on">
-        <!-- Header centralizado -->
-        <header>
-            <b class="brand">Perfil</b>
-        </header>
-        
-        <!-- Formulario de Perfil -->
-        <div class="prof">
-            <div class="bigav" id="profAv">👤</div>
+    <!-- Encabezado / Toolbar -->
+    <div class="toolbar">Perfil</div>
 
-            <label for="setNum">Tu número (con código de país)</label>
-            <input id="setNum" inputmode="numeric">
-            
-            <!-- Campo para mostrar la Clave Pública de Dipsodium -->
-            <label for="pubKeyDisplay">Tu Clave Pública (Libsodium / X25519)</label>
-            <div style="display: flex; gap: 8px;">
-                <input id="pubKeyDisplay" type="text" readonly style="font-size: 0.75rem; opacity: 0.8;" placeholder="Cargando clave...">
-                <button type="button" class="btn" style="width: auto; padding: 0 12px;" onclick="copyPublicKey()" title="Copiar Clave">📋</button>
-            </div>
+    <!-- Contenido Scrollable -->
+    <div class="scroll-content">
 
-            <label style="margin-top: 14px;">Seguridad</label>
-            <div class="seg">
-                <button id="sOff2" type="button" onclick="setSec(0)">🔓 Normal</button>
-                <button id="sOn2" type="button" onclick="setSec(1)">🛡️ Blindado</button>
-            </div>
-
-            <p class="tag" style="margin-top: 8px;">
-                🛡️ Blindado: los mensajes se borran solos a los 45s y no se guarda nada en el teléfono.
-            </p>
-            
-            <button class="btn" style="margin-top: 20px;" type="button" onclick="saveProfile()">Guardar</button>
-            
-            <!-- Botón Cerrar Sesión -->
-            <button class="btn ghost" style="margin-top: 10px; color: var(--red); border-color: var(--red);" type="button" onclick="logout()">
-                Cerrar Sesión
-            </button>
-            
-            <p class="tag" style="margin-top: 24px; text-align: center;">
-                🔐 Mensajería cifrada extremo a extremo con Libsodium (X25519/XSalsa20-Poly1305). Tu clave privada nunca sale de tu navegador.
-            </p>
+        <!-- Imagen de Perfil -->
+        <div class="profile-picture">
+            <svg viewBox="0 0 24 24">
+                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+            </svg>
         </div>
 
-        <!-- Navegación Inferior (.tabs) -->
-        <nav class="tabs">
-            <button onclick="goHome()">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
-                </svg>
-                <span>Chats</span>
-            </button>
-            <button class="act" onclick="openProfile()">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                </svg>
-                <span>Perfil</span>
-            </button>
-        </nav>
+        <!-- Nombre de Usuario / Teléfono -->
+        <div class="user-name">{{ user_phone }}</div>
+
+        <!-- Modo de Seguridad y Clave Pública (Toca para copiar) -->
+        <div class="user-info-box" id="infoBox" data-full-key="{{ pub_key_full }}">
+            <div>{{ sec_label }}</div>
+            <div style="margin-top: 4px;">Clave Pública (Toca para copiar):</div>
+            <div class="key-code">{{ pub_key_short }}</div>
+        </div>
+
+        <!-- Separador -->
+        <div class="divider"></div>
+
+        <!-- Botón Editar Perfil -->
+        <a href="{% url 'edit_profile' %}" class="btn-action">
+            ✏️ Editar Perfil
+        </a>
+
+        <!-- Botón Ajustes -->
+        <a href="{% url 'settings' %}" class="btn-action">
+            ⚙️ Ajustes y Seguridad
+        </a>
+
+        <!-- Botón Cerrar Sesión -->
+        <a href="{% url 'logout' %}" class="btn-action btn-danger" id="btnLogout">
+            🚪 Cerrar Sesión
+        </a>
+
     </div>
-</div>
 
-<!-- LÓGICA JAVASCRIPT — PERFIL Y CRIPTOGRAFÍA DIPSODIUM -->
-<script>
-  let currentSecureMode = 0; // 0: Normal, 1: Blindado
+    <!-- Navegación Inferior -->
+    <nav class="bottom-nav">
+        <a href="{% url 'home' %}" class="nav-item">
+            <svg viewBox="0 0 24 24">
+                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+            </svg>
+            Inicio
+        </a>
+        <a href="{% url 'profile' %}" class="nav-item active">
+            <svg viewBox="0 0 24 24">
+                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+            </svg>
+            Perfil
+        </a>
+    </nav>
 
-  document.addEventListener('DOMContentLoaded', async function() {
-    // 1. Unificar claves de localStorage usadas en Onboarding
-    const savedPhone = localStorage.getItem('sp_me') || '{{ request.user.username }}';
-    const savedSecure = localStorage.getItem('sp_secure') || '0';
+    <!-- Toast Component -->
+    <div id="toast" class="toast">¡Clave pública copiada al portapapeles! 📋</div>
 
-    const setNum = document.getElementById('setNum');
-    if (setNum && savedPhone) {
-      setNum.value = savedPhone;
-    }
-    
-    setSec(parseInt(savedSecure, 10));
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const infoBox = document.getElementById('infoBox');
+            const toast = document.getElementById('toast');
+            const btnLogout = document.getElementById('btnLogout');
 
-    // 2. Inicializar Libsodium y mostrar la clave pública
-    try {
-      await sodium.ready;
-      let pubKey = localStorage.getItem('sp_pubkey');
-      let privKey = localStorage.getItem('sp_privkey');
+            // 1. Copiar clave pública al portapapeles
+            infoBox.addEventListener('click', () => {
+                const fullKey = infoBox.getAttribute('data-full-key');
+                if (fullKey && fullKey !== 'No disponible') {
+                    navigator.clipboard.writeText(fullKey).then(() => {
+                        showToast();
+                    }).catch(err => {
+                        console.error('Error al copiar la clave: ', err);
+                    });
+                }
+            });
 
-      // Si no existen llaves, se generan automáticamente
-      if (!pubKey || !privKey) {
-        const keyPair = sodium.crypto_box_keypair();
-        privKey = sodium.sodium_to_base64(keyPair.privateKey);
-        pubKey = sodium.sodium_to_base64(keyPair.publicKey);
+            // 2. Limpieza de LocalStorage al cerrar sesión (Simula logoutUser de Android)
+            btnLogout.addEventListener('click', () => {
+                localStorage.clear();
+                sessionStorage.clear();
+            });
 
-        localStorage.setItem('sp_privkey', privKey);
-        localStorage.setItem('sp_pubkey', pubKey);
-      }
-
-      const pubKeyInput = document.getElementById('pubKeyDisplay');
-      if (pubKeyInput) pubKeyInput.value = pubKey;
-    } catch (e) {
-      console.error("Error al cargar Libsodium:", e);
-    }
-  });
-
-  // --- FUNCIONES DE NAVEGACIÓN GLOBAL ---
-  function goHome() {
-    window.location.href = "{% url 'home' %}";
-  }
-
-  function openProfile() {
-    window.location.href = "{% url 'profile' %}";
-  }
-
-  function logout() {
-    localStorage.clear();
-    window.location.href = "{% url 'onboard' %}";
-  }
-
-  // --- FUNCIONES ESPECÍFICAS DE PERFIL ---
-  function setSec(mode) {
-    currentSecureMode = mode;
-    const btnOff = document.getElementById('sOff2');
-    const btnOn = document.getElementById('sOn2');
-
-    if (btnOff && btnOn) {
-      btnOn.classList.toggle('act', mode === 1);
-      btnOff.classList.toggle('act', mode === 0);
-    }
-  }
-
-  async function saveProfile() {
-    const phoneInput = document.getElementById('setNum');
-    if (!phoneInput || !phoneInput.value.trim()) {
-      alert('Por favor, ingresa un número de teléfono válido.');
-      return;
-    }
-
-    const newPhone = phoneInput.value.trim().replace(/\D/g, '');
-    localStorage.setItem('sp_me', newPhone);
-    localStorage.setItem('sp_secure', currentSecureMode.toString());
-
-    alert('Perfil guardado correctamente.');
-    goHome();
-  }
-
-  function copyPublicKey() {
-    const pubKeyInput = document.getElementById('pubKeyDisplay');
-    if (pubKeyInput && pubKeyInput.value) {
-      navigator.clipboard.writeText(pubKeyInput.value);
-      alert('Clave pública copiada al portapapeles.');
-    }
-  }
-</script>
-
+            function showToast() {
+                toast.classList.add("show");
+                setTimeout(() => { 
+                    toast.classList.remove("show"); 
+                }, 3000);
+            }
+        });
+    </script>
 </body>
 </html>

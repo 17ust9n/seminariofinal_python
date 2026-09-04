@@ -2,13 +2,14 @@ import json
 from django.db.models import Q
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
-from django.contrib.auth import login
+from django.contrib.auth import login, logout
 from django.contrib.auth.models import User
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from django.urls import reverse  # <-- AGREGÁ ESTA LÍNEA AL PRINCIPIO DE TODO
+from django.urls import reverse
 
 from .models import UserProfile, Conversation, Message, Contact, Llamada
+
 
 def search_users_api(request):
     """
@@ -52,6 +53,7 @@ def search_users_api(request):
             })
 
     return JsonResponse({'status': 'success', 'results': results})
+
 
 # ==========================================
 # 1. PANTALLAS PRINCIPALES (HTML Render)
@@ -116,7 +118,7 @@ def chat_detail(request, room_id=None, username=None):
         'conversation': conversation,
         'messages': messages,
         'display_name': display_name,
-        'contacto_pub_key': contacto_pub_key  # <-- Clave pública inyectada para encriptar en el HTML
+        'contacto_pub_key': contacto_pub_key
     })
 
 
@@ -184,7 +186,7 @@ def profile(request):
     return render(request, 'profile.html', {'profile': prof})
 
 
-@csrf_exempt  # <-- AGREGAR ESTO AQUÍ para evitar el error 403 Forbidden en el Onboarding
+@csrf_exempt
 def onboard(request):
     """
     Inicia sesión de usuario usando su número telefónico y almacena su clave pública de Libsodium.
@@ -213,7 +215,6 @@ def onboard(request):
             return JsonResponse({'status': 'error', 'message': f'Error interno: {str(e)}'}, status=500)
 
     return render(request, 'onboard.html')
-
 
 
 @csrf_exempt
@@ -248,7 +249,6 @@ def modal_handler(request, modal_type):
         data = json.loads(request.body.decode('utf-8'))
         current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
 
-        # A) Crear o Editar Contacto
         if modal_type == 'mContact':
             contact_id = data.get('cId')
             name = data.get('cName', '').strip()
@@ -283,7 +283,8 @@ def modal_handler(request, modal_type):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f'Error en el servidor: {str(e)}'}, status=500)
 
-@csrf_exempt  # Permite que la API reciba datos asíncronos por fetch
+
+@csrf_exempt
 def send_message_api(request):
     """
     Recibe el payload del mensaje encriptado desde el frontend y lo guarda en la BD.
@@ -292,19 +293,14 @@ def send_message_api(request):
         try:
             data = json.loads(request.body.decode('utf-8'))
             conversation_id = data.get('conversation_id')
-            # 'content' guardará el texto cifrado Base64 generado por sodium.js
             encrypted_content = data.get('content', '').strip() 
 
             if not conversation_id or not encrypted_content:
                 return JsonResponse({'status': 'error', 'message': 'Faltan parámetros obligatorios.'}, status=400)
 
-            # Buscar la conversación
             conversation = get_object_or_404(Conversation, id=conversation_id)
-
-            # Identificar el usuario emisor real (o usar invitado de respaldo si no está autenticado)
             current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
 
-            # Crear y almacenar el mensaje con el contenido cifrado de Libsodium
             nuevo_mensaje = Message.objects.create(
                 conversation=conversation,
                 sender=current_user,
@@ -312,7 +308,6 @@ def send_message_api(request):
                 msg_type='text'
             )
 
-            # Actualizar la fecha de modificación de la conversación para que suba en el Home
             conversation.save()
 
             return JsonResponse({
@@ -329,30 +324,132 @@ def send_message_api(request):
 
     return JsonResponse({'status': 'error', 'message': 'Método no permitido.'}, status=405)
 
+
 @csrf_exempt
 def delete_message_api(request, message_id):
     """
-    Elimina un mensaje de la base de datos de forma permanente (ideal para el modo Blindado).
+    Elimina un mensaje de la base de datos de forma permanente.
     """
     if request.method == 'POST':
         try:
-            # Buscamos el mensaje por su ID
             mensaje = get_object_or_404(Message, id=message_id)
-            
-            # Verificación de seguridad básica: solo el emisor puede mandar a borrar su mensaje
             current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
             
-            # Si prefieres que cualquiera en el chat pueda borrarlo para ambos lados (como un chat secreto),
-            # puedes quitar o comentar esta validación de emisor:
             if mensaje.sender != current_user and current_user.username != "invitado":
                 return JsonResponse({'status': 'error', 'message': 'No tienes permisos para borrar este mensaje.'}, status=403)
             
-            # Borramos el registro físico de la base de datos de Django
             mensaje.delete()
-            
             return JsonResponse({'status': 'success', 'message': 'Mensaje eliminado del servidor sin dejar rastros.'})
             
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': f'Error en el servidor: {str(e)}'}, status=500)
 
     return JsonResponse({'status': 'error', 'message': 'Método no permitido.'}, status=405)
+
+
+def settings_view(request):
+    """
+    Renderiza la pantalla de Ajustes y Seguridad.
+    """
+    current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
+    profile, _ = UserProfile.objects.get_or_create(user=current_user)
+
+    context = {
+        'security_level': profile.security_level,
+        'pub_key': profile.pub_key or 'No generada',
+    }
+    return render(request, 'settings.html', context)
+
+
+@csrf_exempt
+def update_security_level_api(request):
+    """
+    API endpoint para actualizar el nivel de seguridad (Modo Blindado).
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body.decode('utf-8'))
+            level = int(data.get('security_level', 0))
+
+            current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
+            profile, _ = UserProfile.objects.get_or_create(user=current_user)
+            
+            profile.security_level = level
+            profile.save()
+
+            return JsonResponse({'status': 'success', 'security_level': profile.security_level})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+
+def profile(request):
+    """
+    Vista del perfil de usuario con datos criptográficos y nivel de seguridad.
+    """
+    if request.user.is_authenticated:
+        current_user = request.user
+    else:
+        current_user, _ = User.objects.get_or_create(username="invitado")
+
+    user_profile, _ = UserProfile.objects.get_or_create(user=current_user)
+
+    # Formatear el label del nivel de seguridad
+    sec_label = "Modo Blindado 🛡️" if user_profile.security_level == 1 else "Modo Normal ⚡"
+
+    # Formatear la vista previa corta de la clave pública
+    pub_key = user_profile.pub_key or ""
+    if len(pub_key) > 16:
+        short_key = f"{pub_key[:8]}...{pub_key[-8:]}"
+    else:
+        short_key = pub_key or "No disponible"
+
+    context = {
+        'user_phone': current_user.username,
+        'sec_label': sec_label,
+        'pub_key_full': pub_key,
+        'pub_key_short': short_key,
+        'profile': user_profile,
+    }
+    return render(request, 'profile.html', context)
+
+def edit_profile(request):
+    """
+    Vista para editar la información del perfil del usuario.
+    """
+    if request.user.is_authenticated:
+        current_user = request.user
+    else:
+        current_user, _ = User.objects.get_or_create(username="invitado")
+
+    if request.method == 'POST':
+        # Procesar actualización del nombre de usuario o teléfono
+        new_username = request.POST.get('username', '').strip()
+        if new_username:
+            current_user.username = new_username
+            current_user.save()
+            return redirect('profile')
+
+    return render(request, 'edit_profile.html', {'user': current_user})
+
+def settings(request):
+    """
+    Vista de Ajustes y Seguridad.
+    """
+    current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
+    profile, _ = UserProfile.objects.get_or_create(user=current_user)
+
+    context = {
+        'security_level': profile.security_level,
+        'pub_key': profile.pub_key or 'No generada',
+    }
+    return render(request, 'settings.html', context)
+
+
+def logout_view(request):
+    """
+    Cierra la sesión del usuario en Django y destruye las variables de sesión del servidor.
+    """
+    logout(request)
+    return redirect('onboard')
