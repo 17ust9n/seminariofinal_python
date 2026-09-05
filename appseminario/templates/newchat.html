@@ -9,6 +9,64 @@
 
     <!-- Cargamos Libsodium desde CDN -->
     <script src="https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.7.13/dist/browsers/sodium.js" async></script>
+    
+    <style>
+        /* Estilos para reproducir las opciones en lista vertical */
+        .action-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 16px;
+            margin-bottom: 20px;
+        }
+
+        .action-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            cursor: pointer;
+            padding: 4px 0;
+            user-select: none;
+        }
+
+        .action-item:hover {
+            opacity: 0.85;
+        }
+
+        .fab-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background-color: var(--accent, #00e676); /* Usa la variable de tu acento verde o el fallback */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            color: #0d1b2a; /* Color oscuro del icono */
+            flex-shrink: 0;
+        }
+
+        .action-label {
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .section-header {
+            color: var(--fg, #ffffff);
+            font-size: 15px;
+            font-weight: bold;
+            padding: 12px 0 8px 0;
+        }
+
+        /* --- NUEVOS ESTILOS PARA EL BOTÓN DE GUARDAR CON ÍCONO --- */
+        .btn-with-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px; /* Espacio entre el ícono y el texto */
+        }
+    </style>
 </head>
 <body>
 
@@ -23,11 +81,6 @@
         </header>
 
         <main style="padding: 16px; flex: 1; overflow-y: auto;">
-            <!-- Botón Agregar Nuevo Contacto -->
-            <button class="btn" onclick="openAddModal()" style="margin-bottom: 16px;">
-                + Agregar nuevo contacto
-            </button>
-
             <!-- Buscador estilizado -->
             <div class="searchwrap">
                 <input id="newChatSearch" 
@@ -36,6 +89,42 @@
                        oninput="liveSearchNewChat()" 
                        autocomplete="off">
             </div>
+
+            <!-- Lista vertical de acciones principales -->
+            <div class="action-list">
+                <!-- Fila 1: Nuevo contacto -->
+                <div class="action-item" onclick="openAddModal()">
+                    <button class="fab-btn" title="Nuevo contacto">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                        </svg>
+                    </button>
+                    <span class="action-label">Nuevo contacto</span>
+                </div>
+
+                <!-- Fila 2: Importar contactos -->
+                <div class="action-item" onclick="importContacts()">
+                    <button class="fab-btn" title="Importar contactos">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                        </svg>
+                    </button>
+                    <span class="action-label">Importar contactos</span>
+                </div>
+
+                <!-- Fila 3: Nuevo grupo -->
+                <div class="action-item" onclick="openNewGroupModal()">
+                    <button class="fab-btn" title="Nuevo grupo">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                        </svg>
+                    </button>
+                    <span class="action-label">Nuevo grupo</span>
+                </div>
+            </div>
+
+            <!-- Subtítulo de sección -->
+            <div class="section-header">Mis contactos</div>
 
             <!-- Lista de Contactos -->
             <div id="contacts-list">
@@ -109,7 +198,11 @@
 
         <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 8px;">
             <button onclick="closeModal()" class="btn ghost" style="width: auto; padding: 8px 16px;">Cancelar</button>
-            <button onclick="saveContact()" class="btn" style="width: auto; padding: 8px 16px;">Guardar</button>
+            
+            <!-- MODIFICACIÓN AQUÍ: Botón Guardar con Ícono -->
+            <button onclick="saveContact()" class="btn btn-with-icon" style="width: auto; padding: 8px 16px;">
+                💾 Guardar
+            </button>
         </div>
     </div>
 </div>
@@ -148,6 +241,16 @@ function openEditModal(id, name, phone, pubKey = '') {
 
 function closeModal() {
     document.getElementById('contactModal').style.display = 'none';
+}
+
+function importContacts() {
+    // Agrega aquí tu lógica de JS o redirección para importar contactos
+    alert('Función de importar contactos próximamente.');
+}
+
+function openNewGroupModal() {
+    // Agrega aquí tu lógica para crear un nuevo grupo
+    alert('Función para crear nuevo grupo próximamente.');
 }
 
 async function saveContact() {
