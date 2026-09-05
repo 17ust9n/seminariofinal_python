@@ -453,3 +453,16 @@ def logout_view(request):
     """
     logout(request)
     return redirect('onboard')
+
+def about(request):
+    """
+    Renderiza la pantalla 'Acerca de'.
+    """
+    return render(request, 'about.html')
+
+
+def terms(request):
+    """
+    Renderiza la pantalla de 'Términos y Condiciones'.
+    """
+    return render(request, 'terms.html')

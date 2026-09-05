@@ -15,6 +15,8 @@ urlpatterns = [
     path('profile/', views.profile, name='profile'),
     path('edit_profile/', views.edit_profile, name='edit_profile'),
     path('settings/', views.settings, name='settings'),
+    path('about/', views.about, name='about'),
+    path('terms/', views.terms, name='terms'),
 
     # --- Modales / Acciones Asíncronas ---
     path('modal/<str:modal_type>/', views.modal_handler, name='modal_handler'),
