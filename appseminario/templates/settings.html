@@ -1,285 +1,108 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ajustes y Seguridad</title>
-    <style>
-        :root {
-            --navy: #0f172a;
-            --navy-card: #1e293b;
-            --green-accent: #10b981;
-            --white: #ffffff;
-            --mut-text: #94a3b8;
-            --line-border: #334155;
-        }
+    <title>{% block title %}Starssenger - Ajustes y Seguridad{% endblock %}</title>
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: system-ui, -apple-system, sans-serif;
-        }
+    <!-- CSS principal -->
+    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=125">
 
-        body {
-            background-color: var(--navy);
-            color: var(--white);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
+    <!-- Cargamos Libsodium de forma local y estable desde tu Django -->
+    <script src="{% static 'js/sodium.js' %}"></script>
 
-        /* Toolbar / Encabezado */
-        .toolbar {
-            display: flex;
-            align-items: center;
-            padding: 16px;
-            background-color: var(--navy);
-            border-bottom: 1px solid var(--line-border);
-        }
-
-        .btn-back {
-            background: none;
-            border: none;
-            color: var(--green-accent);
-            font-size: 20px;
-            cursor: pointer;
-            margin-right: 16px;
-            text-decoration: none;
-        }
-
-        .toolbar-title {
-            font-size: 18px;
-            font-weight: bold;
-        }
-
-        /* Contenido Principal */
-        .container {
-            padding: 24px;
-            max-width: 600px;
-            width: 100%;
-            margin: 0 auto;
-        }
-
-        /* Sección de Opción con Switch */
-        .setting-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .setting-info h3 {
-            font-size: 16px;
-            font-weight: bold;
-        }
-
-        .setting-info p {
-            color: var(--mut-text);
-            font-size: 12px;
-            margin-top: 4px;
-        }
-
-        /* Toggle Switch en CSS */
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 48px;
-            height: 24px;
-        }
-
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-color: #475569;
-            transition: .3s;
-            border-radius: 24px;
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 18px;
-            width: 18px;
-            left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: .3s;
-            border-radius: 50%;
-        }
-
-        input:checked + .slider {
-            background-color: var(--green-accent);
-        }
-
-        input:checked + .slider:before {
-            transform: translateX(24px);
-        }
-
-        /* Divisor */
-        .divider {
-            height: 1dp;
-            border-bottom: 1px solid var(--line-border);
-            margin: 20px 0;
-        }
-
-        /* Clave Pública */
-        .key-title {
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 8px;
-        }
-
-        .key-display {
-            background-color: var(--navy-card);
-            border: 1px solid var(--line-border);
-            border-radius: 8px;
-            padding: 12px;
-            color: var(--mut-text);
-            font-size: 12px;
-            word-break: break-all;
-            min-height: 42px;
-        }
-
-        .btn-outlined {
-            width: 100%;
-            height: 50px;
-            margin-top: 12px;
-            background: transparent;
-            border: 1px solid var(--line-border);
-            color: var(--white);
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        .btn-outlined:hover {
-            background-color: rgba(255, 255, 255, 0.05);
-        }
-
-        /* Toast de Notificación */
-        .toast {
-            visibility: hidden;
-            min-width: 200px;
-            background-color: #333;
-            color: #fff;
-            text-align: center;
-            border-radius: 8px;
-            padding: 12px;
-            position: fixed;
-            z-index: 1;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 14px;
-        }
-
-        .toast.show {
-            visibility: visible;
-            animation: fadein 0.5s, fadeout 0.5s 2.5s;
-        }
-
-        @keyframes fadein {
-            from {bottom: 0; opacity: 0;}
-            to {bottom: 30px; opacity: 1;}
-        }
-
-        @keyframes fadeout {
-            from {bottom: 30px; opacity: 1;}
-            to {bottom: 0; opacity: 0;}
-        }
-    </style>
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
 
-    <!-- Encabezado / Toolbar -->
-    <div class="toolbar">
-        <a href="{% url 'profile' %}" class="btn-back">←</a>
-        <span class="toolbar-title">Ajustes y Seguridad</span>
-    </div>
+<div class="wrap">
+    <div id="settings-view" class="screen on">
 
-    <div class="container">
-        <!-- Nivel de Seguridad -->
-        <div class="setting-row">
-            <div class="setting-info">
-                <h3>Modo Blindado 🛡️</h3>
-                <p>Aumenta el cifrado de las sesiones</p>
-            </div>
-            <label class="switch">
-                <input type="checkbox" id="switchSecurityLevel" {% if security_level == 1 %}checked{% endif %}>
-                <span class="slider"></span>
-            </label>
+        <!-- Encabezado / Toolbar de la App -->
+        <div class="toolbar">
+            <a href="{% url 'profile' %}" class="btn-back">←</a>
+            <span class="toolbar-title">Ajustes y Seguridad</span>
         </div>
 
-        <div class="divider"></div>
+        <!-- Contenido Centralizado y Confinado Horizontalmente -->
+        <div class="container">
+            <!-- Nivel de Seguridad -->
+            <div class="setting-row">
+                <div class="setting-info">
+                    <h3>Modo Blindado 🛡️</h3>
+                    <p>Aumenta el cifrado de las sesiones</p>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="switchSecurityLevel" {% if security_level == 1 %}checked{% endif %}>
+                    <span class="slider"></span>
+                </label>
+            </div>
 
-        <!-- Clave Pública Criptográfica -->
-        <div class="key-title">Clave Pública Curve25519</div>
-        <div class="key-display" id="tvFullPublicKey">{{ pub_key }}</div>
+            <div class="divider"></div>
 
-        <button class="btn-outlined" id="btnCopyKey">Copiar Clave Completa</button>
+            <!-- Clave Pública Criptográfica -->
+            <div class="key-title">Clave Pública Curve25519</div>
+            <div class="key-display" id="tvFullPublicKey">{{ pub_key }}</div>
+
+            <button class="btn-outlined" id="btnCopyKey">Copiar Clave Completa</button>
+        </div>
+
+        <!-- Contenedor Toast integrado al área táctil del celular -->
+        <div id="toast" class="toast">Clave pública copiada 📋</div>
+
     </div>
+</div>
 
-    <!-- Contenedor Toast -->
-    <div id="toast" class="toast">Clave pública copiada 📋</div>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const switchSecurity = document.getElementById('switchSecurityLevel');
+        const btnCopyKey = document.getElementById('btnCopyKey');
+        const tvFullPublicKey = document.getElementById('tvFullPublicKey');
+        const toast = document.getElementById('toast');
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const switchSecurity = document.getElementById('switchSecurityLevel');
-            const btnCopyKey = document.getElementById('btnCopyKey');
-            const tvFullPublicKey = document.getElementById('tvFullPublicKey');
-            const toast = document.getElementById('toast');
+        // 1. Guardar cambio de nivel de seguridad
+        switchSecurity.addEventListener('change', async (e) => {
+            const isChecked = e.target.checked;
+            const level = isChecked ? 1 : 0;
 
-            // 1. Guardar cambio de nivel de seguridad
-            switchSecurity.addEventListener('change', async (e) => {
-                const isChecked = e.target.checked;
-                const level = isChecked ? 1 : 0;
-
-                try {
-                    const response = await fetch("{% url 'update_security_level_api' %}", {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ security_level: level })
-                    });
-                    
-                    const result = await response.json();
-                    if (result.status !== 'success') {
-                        console.error('Error al guardar ajuste:', result.message);
-                    }
-                } catch (error) {
-                    console.error('Error de red:', error);
+            try {
+                const response = await fetch("{% url 'update_security_level_api' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ security_level: level })
+                });
+                
+                const result = await response.json();
+                if (result.status !== 'success') {
+                    console.error('Error al guardar ajuste:', result.message);
                 }
-            });
-
-            // 2. Copiar clave pública al portapapeles
-            btnCopyKey.addEventListener('click', () => {
-                const keyText = tvFullPublicKey.innerText.trim();
-                if (keyText && keyText !== 'No generada') {
-                    navigator.clipboard.writeText(keyText).then(() => {
-                        showToast();
-                    }).catch(err => {
-                        console.error('Error al copiar: ', err);
-                    });
-                }
-            });
-
-            function showToast() {
-                toast.classList.add("show");
-                setTimeout(() => { 
-                    toast.classList.remove("show"); 
-                }, 3000);
+            } catch (error) {
+                console.error('Error de red:', error);
             }
         });
-    </script>
+
+        // 2. Copiar clave pública al portapapeles
+        btnCopyKey.addEventListener('click', () => {
+            const keyText = tvFullPublicKey.innerText.trim();
+            if (keyText && keyText !== 'No generada') {
+                navigator.clipboard.writeText(keyText).then(() => {
+                    showToast();
+                }).catch(err => {
+                    console.error('Error al copiar: ', err);
+                });
+            }
+        });
+
+        function showToast() {
+            toast.classList.add("show");
+            setTimeout(() => { 
+                toast.classList.remove("show"); 
+            }, 3000);
+        }
+    });
+</script>
 </body>
 </html>

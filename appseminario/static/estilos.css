@@ -1,594 +1,231 @@
 /* ==========================================
-   1. VARIABLES Y ESTILOS GLOBALES
+   STARSSENGER CORE CSS - ULTRA COMPACTADO COMPLETO (PARTE 1/2)
    ========================================== */
 :root {
-  --navy: #0B1F33;
-  --navy2: #12314E;
-  --green: #21C36F;
-  --mut: #8aa0b3;
-  --line: #24455f;
-  --red: #c0392b;
+  --navy: #0B1F33;    --navy2: #12314E;
+  --green: #21C36F;   --mut: #8aa0b3;
+  --line: #24455f;    --line-border: #334155;
+  --red: #c0392b;     --white: #ffffff;
 }
 
-* {
-  box-sizing: border-box;
-  font-family: -apple-system, Segoe UI, Roboto, sans-serif;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, Segoe UI, Roboto, system-ui, sans-serif; }
 
-html, body {
-  margin: 0;
-  height: 100%;
+/* Fondo exterior de PC oscuro para resaltar la silueta del smartphone */
+html, body { height: 100%; background: #050f1a; color: #eaf2f8; }
+
+.wrap, .screen { display: flex; flex-direction: column; height: 100%; }
+
+/* Contenedor estricto estilo aplicación móvil centralizada */
+.wrap { 
+  position: relative; 
+  overflow: hidden; 
+  width: 100%;
+  max-width: 420px; 
+  margin: 0 auto; 
   background: var(--navy);
-  color: #eaf2f8;
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
 }
 
-/* ==========================================
-   2. ESTRUCTURA Y PANTALLAS (WRAPPER)
-   ========================================== */
-.wrap {
-  max-width: 520px;
-  margin: auto;
-  height: 100vh;
-  position: relative;
-  overflow: hidden;
-}
+.screen { position: absolute; inset: 0; display: none; }
+.screen.on { display: flex; }
 
-.screen {
-  position: absolute;
-  inset: 0;
-  display: none;
-  flex-direction: column;
-}
-
-.screen.on {
-  display: flex;
-}
-
-/* ==========================================
-   3. HEADER Y BUSCADOR
-   ========================================== */
-header {
-  padding: 12px 14px;
-  background: var(--navy2);
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 56px;
-}
-
+/* --- HEADER, BUSCADOR Y COMPONENTES DE CONTROL --- */
+header, .searchwrap { padding: 12px 14px; background: var(--navy2); border-bottom: 1px solid var(--line); }
+header { display: flex; align-items: center; gap: 10px; min-height: 56px; }
 header b { font-size: 18px; }
-header .sp { flex: 1; }
-
-.dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--red);
-  flex: none;
-}
+header .sp, #incall .sp { flex: 1; }
+.brand { font-size: 29px; font-weight: 300; letter-spacing: 0.5px; margin-left: 8px; }
+.logo { height: 42px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--red); }
 .dot.on { background: var(--green); }
 
-.logo { height: 42px; flex: none; }
-.brand {
-  font-size: 29px;
-  font-weight: 300;
-  letter-spacing: 0.5px;
-  margin-left: 8px;
-}
+/* --- FORMULARIOS, INPUTS Y BOTONES --- */
+input, textarea { width: 100%; background: #0e263b; color: #eaf2f8; border: 1px solid var(--line); border-radius: 10px; padding: 12px; font-size: 16px; }
+.searchwrap input { border-radius: 22px; padding: 11px 16px; font-size: 15px; }
+label { font-size: 13px; color: var(--mut); display: block; margin: 14px 0 5px; }
 
-.searchwrap {
-  padding: 10px 14px;
-  background: var(--navy2);
-  border-bottom: 1px solid var(--line);
-  flex: none;
-}
+.btn, #bar button, .modal-actions .btn { background: var(--green); color: #04240f; border: 0; border-radius: 10px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.btn { padding: 13px 16px; font-size: 15px; width: 100%; }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn.ghost, .modal-actions .btn.ghost { background: #0e263b; color: #eaf2f8; border: 1px solid var(--line); }
 
-.searchwrap input {
-  width: 100%;
-  background: #0e263b;
-  border: 1px solid var(--line);
-  border-radius: 22px;
-  padding: 11px 16px;
-  color: #eaf2f8;
-  font-size: 15px;
+/* CORRECCIÓN INTEGRADA: Flechas de regreso forzadas a color verde neón visible */
+.iconbtn, .back, .back-btn, .btn-back { background: none; border: 0; cursor: pointer; line-height: 1; display: flex; align-items: center; }
+.iconbtn { color: #eaf2f8; font-size: 22px; padding: 4px 6px; }
+.back, .back-btn, .btn-back { 
+  color: var(--green) !important; 
+  font-size: 26px; 
+  padding-right: 8px; 
+  text-decoration: none; 
+  font-weight: bold;
 }
+.back-btn, .btn-back { font-size: 24px; padding: 4px 8px; justify-content: center; transition: opacity 0.2s; }
+.back-btn:hover, .btn-back:hover { opacity: 0.8; }
+.back-btn:active, .btn-back:active { opacity: 0.5; }
 
-/* ==========================================
-   4. BOTONES E INPUTS GENERALES
-   ========================================== */
-input, textarea {
-  width: 100%;
-  background: #0e263b;
-  color: #eaf2f8;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 12px;
-  font-size: 16px;
-}
-
-label {
-  font-size: 13px;
-  color: var(--mut);
-  display: block;
-  margin: 14px 0 5px;
-}
-
-.btn {
-  background: var(--green);
-  color: #04240f;
-  border: 0;
-  border-radius: 10px;
-  padding: 13px 16px;
-  font-weight: 700;
-  font-size: 15px;
-  cursor: pointer;
-  width: 100%;
-}
-
-.btn.ghost {
-  background: #0e263b;
-  color: #eaf2f8;
-  border: 1px solid var(--line);
-}
-
-.iconbtn {
-  background: none;
-  border: 0;
-  color: #eaf2f8;
-  font-size: 22px;
-  cursor: pointer;
-  padding: 4px 6px;
-  line-height: 1;
-}
-
-.callbtn {
-  background: var(--green);
-  border: 0;
-  border-radius: 50%;
-  width: 42px;
-  height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  flex: none;
-  color: #04240f;
-}
-.callbtn:active { filter: brightness(.9); }
-.callbtn svg { width: 22px; height: 22px; }
-
-.back {
-  background: none;
-  border: 0;
-  color: var(--green);
-  font-size: 30px;
-  cursor: pointer;
-  padding: 0 8px 0 0;
-  line-height: 1;
-  flex: none;
-}
-
-/* ==========================================
-   5. LISTADO DE CHATS Y FILAS
-   ========================================== */
-#list {
-  flex: 1;
-  overflow-y: auto;
-  padding-bottom: 6px;
-}
-
-.row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  cursor: pointer;
-  border-bottom: 1px solid rgba(36, 69, 95, .4);
-}
+/* --- LISTADOS, FILAS Y CHATS --- */
+#list, #chat, .scroll-content, .container { flex: 1; overflow-y: auto; }
+#list { padding-bottom: 80px; }
+.row, .pick { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; border-bottom: 1px solid rgba(36, 69, 95, .4); }
 .row:active { background: var(--navy2); }
-
-.av {
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  background: var(--navy2);
-  border: 1px solid var(--line);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  color: var(--green);
-  flex: none;
-  font-size: 16px;
-}
+.av, .badge, #voiceface, .vfav, #addcall, .modal, .card, .action-item, .fab-btn, .bottom-nav a { display: flex; align-items: center; justify-content: center; }
+.av { width: 46px; height: 46px; border-radius: 50%; background: var(--navy2); border: 1px solid var(--line); color: var(--green); font-weight: 700; font-size: 16px; flex: none; }
 .av.grp { color: #eaf2f8; }
-
 .rmid { flex: 1; min-width: 0; }
 .rname { font-size: 16px; font-weight: 600; }
-.rprev {
-  font-size: 13px;
-  color: var(--mut);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-top: 2px;
-}
+.rprev, .rtime, .empty, .sys { font-size: 13px; color: var(--mut); }
+.rprev { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.rright { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.rtime { font-size: 11px; }
+.badge { background: var(--green); color: #04240f; border-radius: 11px; min-width: 20px; height: 20px; padding: 0 6px; font-size: 12px; font-weight: 700; }
+.empty { padding: 40px 24px; text-align: center; line-height: 1.6; }
 
-.rright {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-}
-.rtime { font-size: 11px; color: var(--mut); }
 
-.badge {
-  background: var(--green);
-  color: #04240f;
-  border-radius: 11px;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  font-size: 12px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.empty {
-  padding: 40px 24px;
-  text-align: center;
-  color: var(--mut);
-  font-size: 14px;
-  line-height: 1.6;
-}
 
 /* ==========================================
-   6. MENSUAJES DE CHAT
+   STARSSENGER CORE CSS - ULTRA COMPACTADO COMPLETO (PARTE 2/2)
    ========================================== */
-#chat {
-  flex: 1;
-  overflow-y: auto;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  background: var(--navy);
-}
 
-.msg {
-  max-width: 82%;
-  padding: 8px 12px;
-  border-radius: 14px;
-  font-size: 15px;
-  word-break: break-word;
-}
-
-.mine {
-  align-self: flex-end;
-  background: var(--green);
-  color: #04240f;
-  border-bottom-right-radius: 4px;
-}
-
-.theirs {
-  align-self: flex-start;
-  background: var(--navy2);
-  border: 1px solid var(--line);
-  border-bottom-left-radius: 4px;
-}
-
-.from {
-  font-size: 11px;
-  color: var(--green);
-  font-weight: 700;
-  margin-bottom: 2px;
-}
-
-.sys {
-  align-self: center;
-  color: var(--mut);
-  font-size: 12px;
-  text-align: center;
-  max-width: 95%;
-}
-
-.ct {
-  font-size: 10px;
-  margin-top: 3px;
-  font-family: ui-monospace, monospace;
-  word-break: break-all;
-}
+/* --- BURBUJAS DE CHAT --- */
+#chat { padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.msg { max-width: 82%; padding: 8px 12px; border-radius: 14px; font-size: 15px; word-break: break-word; }
+.mine { align-self: flex-end; background: var(--green); color: #04240f; border-bottom-right-radius: 4px; }
+.theirs { align-self: flex-start; background: var(--navy2); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+.from { font-size: 11px; color: var(--green); font-weight: 700; margin-bottom: 2px; }
+.sys { align-self: center; text-align: center; max-width: 95%; font-size: 12px; }
+.ct { font-size: 10px; margin-top: 3px; font-family: ui-monospace, monospace; word-break: break-all; }
 .theirs .ct { color: var(--mut); opacity: .6; }
 .mine .ct { color: #063d1c; opacity: .9; }
-
-#bar {
-  display: flex;
-  padding: 10px;
-  gap: 8px;
-  background: var(--navy2);
-  border-top: 1px solid var(--line);
-  align-items: center;
-}
+#bar { display: flex; padding: 10px; gap: 8px; background: var(--navy2); border-top: 1px solid var(--line); align-items: center; }
 #bar input { flex: 1; }
-#bar button {
-  background: var(--green);
-  color: #04240f;
-  border: 0;
-  border-radius: 10px;
-  padding: 0 16px;
-  min-width: 52px;
-  height: 44px;
-  font-weight: 700;
-  font-size: 18px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+#bar button { padding: 0 16px; min-width: 52px; height: 44px; font-size: 18px; }
 #bar button svg { width: 22px; height: 22px; }
 #bar button.rec { background: var(--red); color: #fff; }
 
-/* ==========================================
-   7. INTERFAZ DE LLAMADAS (#call / #incall)
-   ========================================== */
-#call {
-  display: none;
-  position: absolute;
-  inset: 0;
-  background: #000;
-  z-index: 9;
-  flex-direction: column;
-}
-
-#grid {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-auto-rows: 1fr;
-  gap: 4px;
-  padding: 4px;
-}
-#grid video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  background: #111;
-  border-radius: 8px;
-}
-#grid video.self {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  width: 104px;
-  height: 150px;
-  z-index: 4;
-  border: 2px solid var(--green);
-  border-radius: 12px;
-  box-shadow: 0 3px 12px rgba(0,0,0,.55);
-}
-
-#voiceface {
-  flex: 1;
-  display: none;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  color: #eaf2f8;
-}
-
-.vfav {
-  width: 128px;
-  height: 128px;
-  border-radius: 50%;
-  background: var(--navy2);
-  border: 2px solid var(--green);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 46px;
-  font-weight: 700;
-  color: var(--green);
-}
-
+/* --- INTERFAZ DE LLAMADAS --- */
+#call { display: none; position: absolute; inset: 0; background: #000; z-index: 9; flex-direction: column; }
+#grid { flex: 1; display: grid; grid-template-columns: 1fr; grid-auto-rows: 1fr; gap: 4px; padding: 4px; }
+#grid video { width: 100%; height: 100%; object-fit: cover; background: #111; border-radius: 8px; }
+#grid video.self { position: absolute; top: 14px; right: 14px; width: 104px; height: 150px; z-index: 4; border: 2px solid var(--green); border-radius: 12px; box-shadow: 0 3px 12px rgba(0,0,0,.55); }
+#voiceface { flex: 1; display: none; gap: 16px; color: #eaf2f8; flex-direction: column; }
+.vfav { width: 128px; height: 128px; border-radius: 50%; background: var(--navy2); border: 2px solid var(--green); font-size: 46px; font-weight: 700; color: var(--green); }
 #vfName { font-size: 23px; font-weight: 600; }
 #vfState { color: var(--mut); font-size: 14px; }
-
-#hang {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 24px;
-  background: var(--red);
-  color: #fff;
-  border: 0;
-  border-radius: 30px;
-  padding: 14px 26px;
-  font-weight: 700;
-  font-size: 15px;
-  cursor: pointer;
-  z-index: 10;
-}
-
-#addcall {
-  position: absolute;
-  top: 14px;
-  left: 14px;
-  z-index: 6;
-  background: rgba(0,0,0,.45);
-  color: #fff;
-  border: 0;
-  border-radius: 50%;
-  width: 46px;
-  height: 46px;
-  font-size: 26px;
-  line-height: 1;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#callkeys {
-  position: absolute;
-  top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 6;
-  background: rgba(0,0,0,.55);
-  color: var(--green);
-  border-radius: 20px;
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 700;
-  font-family: ui-monospace, monospace;
-  display: none;
-  white-space: nowrap;
-}
-
-#incall {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  background: var(--green);
-  color: #04240f;
-  z-index: 30;
-  display: none;
-  padding: 14px 16px;
-  align-items: center;
-  gap: 12px;
-}
+#hang, #addcall, #callkeys, #incall { position: absolute; border: 0; cursor: pointer; }
+#hang { left: 50%; transform: translateX(-50%); bottom: 24px; background: var(--red); color: #fff; border-radius: 30px; padding: 14px 26px; font-weight: 700; font-size: 15px; z-index: 10; }
+#addcall { top: 14px; left: 14px; z-index: 6; background: rgba(0,0,0,.45); color: #fff; border-radius: 50%; width: 46px; height: 46px; font-size: 26px; }
+#callkeys { top: 16px; left: 50%; transform: translateX(-50%); z-index: 6; background: rgba(0,0,0,.55); color: var(--green); border-radius: 20px; padding: 8px 14px; font-size: 13px; font-weight: 700; font-family: ui-monospace, monospace; display: none; white-space: nowrap; }
+#incall { left: 0; right: 0; top: 0; background: var(--green); color: #04240f; z-index: 30; display: none; padding: 14px 16px; align-items: center; gap: 12px; }
 #incall b { font-size: 15px; }
-#incall .sp { flex: 1; }
-#incall button {
-  border: 0;
-  border-radius: 24px;
-  padding: 10px 16px;
-  font-weight: 700;
-  cursor: pointer;
-  font-size: 14px;
-}
+#incall button { border: 0; border-radius: 24px; padding: 10px 16px; font-weight: 700; font-size: 14px; }
 #incall .acc { background: #04240f; color: #fff; }
 #incall .dec { background: var(--red); color: #fff; }
 
-/* ==========================================
-   8. FAB, TABS Y MODALES
-   ========================================== */
-#fab {
-  position: absolute;
-  right: 18px;
-  bottom: 78px;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: var(--green);
-  color: #04240f;
-  border: 0;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0,0,0,.4);
-  z-index: 8;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+/* --- COMODINES, MODALES Y TABS --- */
+#fab { position: absolute; right: 18px; bottom: 78px; width: 60px; height: 60px; border-radius: 50%; background: var(--green); color: #04240f; border: 0; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,.4); z-index: 8; display: flex; align-items: center; justify-content: center; }
 #fab svg { width: 28px; height: 28px; }
-
-.tabs {
-  display: flex;
-  background: var(--navy2);
-  border-top: 1px solid var(--line);
-  flex: none;
-}
-.tabs button {
-  flex: 1;
-  background: none;
-  border: 0;
-  color: var(--mut);
-  padding: 9px 0 8px;
-  font-size: 11px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-}
-.tabs button svg { width: 24px; height: 24px; }
-.tabs button.act { color: var(--green); }
-
-.modal {
-  position: absolute;
-  inset: 0;
-  background: rgba(3, 10, 18, .7);
-  z-index: 20;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 18px;
-}
+.tabs, .bottom-nav { display: flex; background: var(--navy2); border-top: 1px solid var(--line); flex: none; width: 100%; }
+.tabs button, .nav-item { flex: 1; background: none; border: 0; color: var(--mut); padding: 9px 0 8px; font-size: 11px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; }
+.tabs button svg, .nav-item svg { width: 24px; height: 24px; fill: currentColor; }
+.tabs button.act, .nav-item.active { color: var(--green); }
+.modal { position: absolute; inset: 0; background: rgba(3, 10, 18, .7); z-index: 20; display: none; padding: 18px; }
 .modal.on { display: flex; }
-
-.card {
-  background: var(--navy2);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 18px;
-  width: 100%;
-  max-width: 420px;
-  max-height: 88vh;
-  overflow-y: auto;
-}
+.card, .info-card, .key-display { background: var(--navy2); border: 1px solid var(--line); border-radius: 16px; padding: 18px; width: 100%; max-width: 420px; max-height: 88vh; }
 .card h3 { margin: 0 0 4px; font-size: 18px; }
-
 .mrow { display: flex; gap: 10px; margin-top: 16px; }
 .mrow .btn { flex: 1; }
-
-.picklist {
-  margin-top: 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  overflow: hidden;
-}
-.pick {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 11px 12px;
-  border-bottom: 1px solid rgba(36, 69, 95, .4);
-  cursor: pointer;
-}
+.picklist { margin-top: 10px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .pick:last-child { border-bottom: 0; }
 .pick input { width: 20px; height: 20px; flex: none; }
 
-/* Onboarding & Perfil */
-#onboard { padding: 22px 18px; overflow-y: auto; }
-.biglogo { width: 86%; max-width: 420px; height: auto; display: block; margin: 24px auto 16px; }
+/* --- CONTENEDORES INTERNOS UNIFICADOS PARA TODAS LAS PLANTILLAS --- */
+#onboard, .prof, main, .scroll-content, .container { flex: 1; overflow-y: auto; padding: 22px 18px; width: 100%; display: flex; flex-direction: column; }
+.scroll-content { align-items: center; }
+
+/* --- COMPONENTES DE DISEÑO COMUNES --- */
+.biglogo { width: 86%; max-width: 320px; height: auto; display: block; margin: 24px auto 16px; }
 .seg { display: flex; gap: 8px; margin-top: 6px; }
-.seg button {
-  flex: 1;
-  background: #0e263b;
-  color: #eaf2f8;
-  border: 1px solid var(--line);
-  font-weight: 600;
-  border-radius: 10px;
-  padding: 11px;
-  cursor: pointer;
-}
+.seg button { flex: 1; background: #0e263b; color: #eaf2f8; border: 1px solid var(--line); font-weight: 600; border-radius: 10px; padding: 11px; cursor: pointer; }
 .seg button.act { background: var(--green); color: #04240f; border-color: var(--green); }
 
-.prof { padding: 18px 16px; overflow-y: auto; flex: 1; }
-.prof .bigav {
-  width: 96px;
-  height: 96px;
-  border-radius: 50%;
-  background: var(--navy2);
-  border: 2px solid var(--green);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 40px;
-  margin: 6px auto 12px;
+.prof .bigav, .profile-picture { width: 96px; height: 96px; border-radius: 50%; background: var(--navy2); border: 2px solid var(--green); margin: 6px auto 12px; font-size: 40px; display: flex; align-items: center; justify-content: center; }
+.profile-picture { width: 100px; height: 100px; padding: 4px; overflow: hidden; margin-bottom: 16px; border: 1px solid var(--line); }
+.profile-picture svg { width: 60px; height: 60px; fill: var(--mut); }
+.tag { font-size: 13px; color: var(--mut); line-height: 1.5; margin-top: 6px; }
+#oerr { color: var(--red); font-weight: 600; text-align: center; margin-top: 10px; }
+
+/* Toolbar de encabezado uniforme para vistas secundarias */
+.toolbar { padding: 16px; background: var(--navy2); border-bottom: 1px solid var(--line); font-size: 18px; font-weight: bold; position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; }
+.toolbar-title { font-size: 18px; }
+
+.app-logo { width: 90px; height: 90px; border-radius: 20px; background: var(--navy2); border: 1px solid var(--line); margin-bottom: 16px; display: flex; align-items: center; justify-content: center; }
+.app-logo svg { width: 50px; height: 50px; fill: var(--green); }
+.app-title { font-size: 22px; font-weight: bold; margin-bottom: 4px; text-align: center; }
+.app-version { margin-bottom: 16px; text-align: center; }
+.about-text { font-size: 14px; line-height: 1.6; text-align: center; color: var(--mut); }
+
+.info-card, .key-display { border-radius: 8px; padding: 16px; margin-top: 16px; }
+.info-card-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.info-card-item:last-child { border-bottom: 0; }
+.info-card-value { font-weight: 500; color: #fff; }
+.divider { width: 100%; height: 1px; background: var(--line); margin: 24px 0; }
+
+.btn-action, .btn-outlined { width: 100%; height: 50px; background: transparent; border: 1px solid var(--line); color: #fff; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background-color 0.2s; margin-bottom: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
+.btn-outlined { margin-top: 12px; margin-bottom: 0; }
+.btn-action:hover, .btn-outlined:hover, .user-info-box:hover { background: rgba(255, 255, 255, 0.05); }
+
+.user-name { font-size: 20px; font-weight: bold; margin-bottom: 8px; text-align: center; }
+.user-info-box { color: var(--mut); font-size: 13px; text-align: center; line-height: 1.5; cursor: pointer; padding: 8px; border-radius: 8px; transition: background-color 0.2s; user-select: none; }
+.key-code, .key-display { font-family: monospace; word-break: break-all; color: #fff; }
+.key-display { font-size: 12px; min-height: 42px; margin-top: 0; }
+.btn-danger { background: var(--red); border: none; margin-top: 12px; color: #fff; }
+.btn-danger:hover { background: #dc2626; }
+
+.toast { visibility: hidden; min-width: 220px; background: #333; color: #fff; text-align: center; border-radius: 8px; padding: 12px; position: fixed; z-index: 100; bottom: 80px; left: 50%; transform: translateX(-50%); font-size: 13px; }
+.toast.show { visibility: visible; animation: fadeinout 3s; }
+@keyframes fadeinout { 0%, 100% { bottom: 50px; opacity: 0; } 16.6%, 83.3% { bottom: 80px; opacity: 1; } }
+
+.setting-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+.setting-info h3 { font-size: 16px; font-weight: bold; }
+.setting-info p { color: var(--mut); font-size: 12px; margin-top: 4px; }
+.switch { position: relative; display: inline-block; width: 48px; height: 24px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; inset: 0; background: #475569; transition: .3s; border-radius: 24px; }
+.slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; transition: .3s; border-radius: 50%; }
+input:checked + .slider { background: var(--green); }
+input:checked + .slider:before { transform: translateX(24px); }
+.key-title { font-size: 16px; font-weight: bold; margin-bottom: 8px; width: 100%; }
+
+.legal-content { color: var(--mut); font-size: 14px; line-height: 1.6; width: 100%; }
+.legal-content h2, .section-header { color: #fff; font-weight: 700; }
+.legal-content h2 { font-size: 16px; margin-top: 20px; margin-bottom: 8px; }
+.legal-content p { margin-bottom: 12px; }
+
+/* --- BOTONES PROFESIONALES DE ACCIÓN (NEW CHAT) --- */
+.action-list { display: flex; flex-direction: column; gap: 10px; margin: 16px 0 24px; width: 100%; }
+
+/* CORRECCIÓN: Quitamos el centrado forzado y alineamos al inicio (izquierda) */
+.action-item { 
+  gap: 16px; 
+  padding: 14px 18px; 
+  background: var(--navy2); 
+  border: 1px solid rgba(255, 255, 255, 0.03); 
+  border-radius: 14px; 
+  cursor: pointer; 
+  user-select: none; 
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); 
+  transition: background-color 0.2s, transform 0.1s; 
+  display: flex; 
+  align-items: center; 
+  justify-content: flex-start !important; /* Fuerza la alineación izquierda */
+  width: 100%; 
 }
+.action-item:hover { background: #194166; border-color: var(--line); }
+.action-item:active { transform: scale(0.98); background: #0e263b; }
+
+.fab-btn { width: 38px; height: 38px; border-radius: 50%; background: rgba(33, 195, 111, 0.1); border: 0; color: var(--green); flex-shrink: 0; pointer-events: none; display: flex; align-items: center; justify-content: center; }
+.fab-btn svg { width: 20px; height: 20px; }
+.action-label { font-size: 15px; font-weight: 600; color: #eaf2f8; }
+.section-header { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--mut); padding: 0; margin: 24px 0 8px; width: 100%; }

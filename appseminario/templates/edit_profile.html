@@ -4,36 +4,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Starssenger - Perfil</title>
+    <title>{% block title %}Starssenger - Onboarding{% endblock %}</title>
 
     <!-- CSS principal -->
     <link rel="stylesheet" href="{% static 'estilos.css' %}?v=125">
 
-    <!-- Cargamos Libsodium desde CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.7.13/dist/browsers/sodium.js" async></script>
+    <!-- Cargamos Libsodium de forma local y estable desde tu Django -->
+    <script src="{% static 'js/sodium.js' %}"></script>
 
-    <style>
-        /* Estilos para el botón de regreso dentro del header */
-        header {
-            display: flex;
-            align-items: center;
-            padding: 12px 16px;
-            position: relative;
-        }
-
-        .btn-back {
-            background: none;
-            border: none;
-            color: var(--green-accent, #10b981); /* Verde */
-            font-size: 22px;
-            cursor: pointer;
-            text-decoration: none;
-            margin-right: 12px;
-            line-height: 1;
-            display: inline-flex;
-            align-items: center;
-        }
-    </style>
+    {% block extra_head %}{% endblock %}
 </head>
 
 <body>
