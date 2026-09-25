@@ -10,7 +10,7 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, Segoe UI, Roboto, system-ui, sans-serif; }
 
-/* Fondo exterior de PC oscuro para resaltar la silueta del smartphone */
+/* 1) Fondo exterior de PC oscuro para resaltar la silueta del smartphone */
 html, body { height: 100%; background: #050f1a; color: #eaf2f8; }
 
 .wrap, .screen { display: flex; flex-direction: column; height: 100%; }
@@ -31,7 +31,10 @@ html, body { height: 100%; background: #050f1a; color: #eaf2f8; }
 .screen { position: absolute; inset: 0; display: none; }
 .screen.on { display: flex; }
 
-/* --- HEADER, BUSCADOR Y COMPONENTES DE CONTROL --- */
+
+
+
+/* --- 2) HEADER, BUSCADOR Y COMPONENTES DE CONTROL --- */
 header, .searchwrap { padding: 12px 14px; background: var(--navy2); border-bottom: 1px solid var(--line); }
 header { display: flex; align-items: center; gap: 10px; min-height: 56px; }
 header b { font-size: 18px; }
@@ -41,17 +44,39 @@ header .sp, #incall .sp { flex: 1; }
 .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--red); }
 .dot.on { background: var(--green); }
 
-/* --- FORMULARIOS, INPUTS Y BOTONES --- */
+
+
+
+/* --- 3) FORMULARIOS, INPUTS Y BOTONES --- */
 input, textarea { width: 100%; background: #0e263b; color: #eaf2f8; border: 1px solid var(--line); border-radius: 10px; padding: 12px; font-size: 16px; }
 .searchwrap input { border-radius: 22px; padding: 11px 16px; font-size: 15px; }
 label { font-size: 13px; color: var(--mut); display: block; margin: 14px 0 5px; }
 
-.btn, #bar button, .modal-actions .btn { background: var(--green); color: #04240f; border: 0; border-radius: 10px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+/* Botones principales: Color verde, completamente redondos, íconos/texto negro */
+.btn, #bar button, .modal-actions .btn { 
+  background: var(--green); 
+  color: #000000; 
+  border: 0; 
+  border-radius: 50px; 
+  font-weight: 700; 
+  cursor: pointer; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+}
+
+/* Íconos SVG dentro de los botones de acción en color negro */
+.btn svg, #bar button svg, .modal-actions .btn svg {
+  fill: #000000;
+  stroke: #000000;
+  color: #000000;
+}
+
 .btn { padding: 13px 16px; font-size: 15px; width: 100%; }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn.ghost, .modal-actions .btn.ghost { background: #0e263b; color: #eaf2f8; border: 1px solid var(--line); }
 
-/* CORRECCIÓN INTEGRADA: Flechas de regreso forzadas a color verde neón visible */
+/* Botones de íconos */
 .iconbtn, .back, .back-btn, .btn-back { background: none; border: 0; cursor: pointer; line-height: 1; display: flex; align-items: center; }
 .iconbtn { color: #eaf2f8; font-size: 22px; padding: 4px 6px; }
 .back, .back-btn, .btn-back { 
@@ -65,12 +90,25 @@ label { font-size: 13px; color: var(--mut); display: block; margin: 14px 0 5px; 
 .back-btn:hover, .btn-back:hover { opacity: 0.8; }
 .back-btn:active, .btn-back:active { opacity: 0.5; }
 
-/* --- LISTADOS, FILAS Y CHATS --- */
+/* Ajustes a la barra de entrada de mensaje (#bar) */
+#bar button { 
+  border-radius: 50%; 
+  padding: 0; 
+  min-width: 44px; 
+  width: 44px;
+  height: 44px; 
+  font-size: 18px; 
+}
+
+
+
+
+/* --- 4) LISTADOS, FILAS Y CHATS --- */
 #list, #chat, .scroll-content, .container { flex: 1; overflow-y: auto; }
 #list { padding-bottom: 80px; }
 .row, .pick { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; border-bottom: 1px solid rgba(36, 69, 95, .4); }
 .row:active { background: var(--navy2); }
-.av, .badge, #voiceface, .vfav, #addcall, .modal, .card, .action-item, .fab-btn, .bottom-nav a { display: flex; align-items: center; justify-content: center; }
+.av, .badge, #voiceface, .vfav, #addcall, .modal, .card, .action-item, .fab-btn { display: flex; align-items: center; justify-content: center; }
 .av { width: 46px; height: 46px; border-radius: 50%; background: var(--navy2); border: 1px solid var(--line); color: var(--green); font-weight: 700; font-size: 16px; flex: none; }
 .av.grp { color: #eaf2f8; }
 .rmid { flex: 1; min-width: 0; }
@@ -88,7 +126,7 @@ label { font-size: 13px; color: var(--mut); display: block; margin: 14px 0 5px; 
    STARSSENGER CORE CSS - ULTRA COMPACTADO COMPLETO (PARTE 2/2)
    ========================================== */
 
-/* --- BURBUJAS DE CHAT --- */
+/* --- 5) BURBUJAS DE CHAT --- */
 #chat { padding: 14px; display: flex; flex-direction: column; gap: 8px; }
 .msg { max-width: 82%; padding: 8px 12px; border-radius: 14px; font-size: 15px; word-break: break-word; }
 .mine { align-self: flex-end; background: var(--green); color: #04240f; border-bottom-right-radius: 4px; }
@@ -104,7 +142,10 @@ label { font-size: 13px; color: var(--mut); display: block; margin: 14px 0 5px; 
 #bar button svg { width: 22px; height: 22px; }
 #bar button.rec { background: var(--red); color: #fff; }
 
-/* --- INTERFAZ DE LLAMADAS --- */
+
+
+
+/* --- 6) INTERFAZ DE LLAMADAS --- */
 #call { display: none; position: absolute; inset: 0; background: #000; z-index: 9; flex-direction: column; }
 #grid { flex: 1; display: grid; grid-template-columns: 1fr; grid-auto-rows: 1fr; gap: 4px; padding: 4px; }
 #grid video { width: 100%; height: 100%; object-fit: cover; background: #111; border-radius: 8px; }
@@ -123,13 +164,70 @@ label { font-size: 13px; color: var(--mut); display: block; margin: 14px 0 5px; 
 #incall .acc { background: #04240f; color: #fff; }
 #incall .dec { background: var(--red); color: #fff; }
 
-/* --- COMODINES, MODALES Y TABS --- */
-#fab { position: absolute; right: 18px; bottom: 78px; width: 60px; height: 60px; border-radius: 50%; background: var(--green); color: #04240f; border: 0; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,.4); z-index: 8; display: flex; align-items: center; justify-content: center; }
-#fab svg { width: 28px; height: 28px; }
-.tabs, .bottom-nav { display: flex; background: var(--navy2); border-top: 1px solid var(--line); flex: none; width: 100%; }
-.tabs button, .nav-item { flex: 1; background: none; border: 0; color: var(--mut); padding: 9px 0 8px; font-size: 11px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; }
-.tabs button svg, .nav-item svg { width: 24px; height: 24px; fill: currentColor; }
-.tabs button.act, .nav-item.active { color: var(--green); }
+
+
+
+/* --- 7) COMODINES, FAB Y BARRA INFERIOR --- */
+#fab { 
+  position: absolute; 
+  right: 18px; 
+  bottom: 78px; 
+  width: 60px; 
+  height: 60px; 
+  border-radius: 50%; 
+  background: var(--green); 
+  color: #000000; 
+  border: 0; 
+  cursor: pointer; 
+  box-shadow: 0 4px 14px rgba(0,0,0,.4); 
+  z-index: 8; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+}
+#fab svg { 
+  width: 28px; 
+  height: 28px; 
+  fill: #000000; 
+  stroke: #000000;
+}
+
+/* NAVEGACIÓN INFERIOR (RESTAURADA) */
+.tabs, .bottom-nav { 
+  display: flex; 
+  background: var(--navy2); 
+  border-top: 1px solid var(--line); 
+  flex: none; 
+  width: 100%; 
+}
+.tabs button, .nav-item { 
+  flex: 1; 
+  background: none !important; 
+  border: 0 !important; 
+  border-radius: 0 !important; 
+  color: var(--mut); 
+  padding: 9px 0 8px; 
+  font-size: 11px; 
+  cursor: pointer; 
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  justify-content: center; 
+  gap: 3px; 
+  text-decoration: none; 
+  width: auto;
+}
+.tabs button svg, .nav-item svg { 
+  width: 24px; 
+  height: 24px; 
+  fill: currentColor !important; 
+  stroke: none !important; 
+  color: inherit !important; 
+}
+.tabs button.act, .nav-item.active { 
+  color: var(--green) !important; 
+}
+
 .modal { position: absolute; inset: 0; background: rgba(3, 10, 18, .7); z-index: 20; display: none; padding: 18px; }
 .modal.on { display: flex; }
 .card, .info-card, .key-display { background: var(--navy2); border: 1px solid var(--line); border-radius: 16px; padding: 18px; width: 100%; max-width: 420px; max-height: 88vh; }
@@ -140,7 +238,10 @@ label { font-size: 13px; color: var(--mut); display: block; margin: 14px 0 5px; 
 .pick:last-child { border-bottom: 0; }
 .pick input { width: 20px; height: 20px; flex: none; }
 
-/* --- CONTENEDORES INTERNOS UNIFICADOS PARA TODAS LAS PLANTILLAS --- */
+
+
+
+/* --- 8) CONTENEDORES INTERNOS UNIFICADOS PARA TODAS LAS PLANTILLAS --- */
 #onboard, .prof, main, .scroll-content, .container { flex: 1; overflow-y: auto; padding: 22px 18px; width: 100%; display: flex; flex-direction: column; }
 .scroll-content { align-items: center; }
 
@@ -203,29 +304,72 @@ input:checked + .slider:before { transform: translateX(24px); }
 .legal-content h2 { font-size: 16px; margin-top: 20px; margin-bottom: 8px; }
 .legal-content p { margin-bottom: 12px; }
 
-/* --- BOTONES PROFESIONALES DE ACCIÓN (NEW CHAT) --- */
-.action-list { display: flex; flex-direction: column; gap: 10px; margin: 16px 0 24px; width: 100%; }
 
-/* CORRECCIÓN: Quitamos el centrado forzado y alineamos al inicio (izquierda) */
-.action-item { 
-  gap: 16px; 
-  padding: 14px 18px; 
-  background: var(--navy2); 
-  border: 1px solid rgba(255, 255, 255, 0.03); 
-  border-radius: 14px; 
-  cursor: pointer; 
-  user-select: none; 
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); 
-  transition: background-color 0.2s, transform 0.1s; 
+
+
+/* --- 9) BOTONES PROFESIONALES DE ACCIÓN (NUEVO CHAT / CONTACTOS) --- */
+.action-list { 
   display: flex; 
-  align-items: center; 
-  justify-content: flex-start !important; /* Fuerza la alineación izquierda */
+  flex-direction: column; 
+  gap: 16px; 
+  margin: 16px 0 24px; 
   width: 100%; 
 }
-.action-item:hover { background: #194166; border-color: var(--line); }
-.action-item:active { transform: scale(0.98); background: #0e263b; }
 
-.fab-btn { width: 38px; height: 38px; border-radius: 50%; background: rgba(33, 195, 111, 0.1); border: 0; color: var(--green); flex-shrink: 0; pointer-events: none; display: flex; align-items: center; justify-content: center; }
-.fab-btn svg { width: 20px; height: 20px; }
-.action-label { font-size: 15px; font-weight: 600; color: #eaf2f8; }
-.section-header { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--mut); padding: 0; margin: 24px 0 8px; width: 100%; }
+/* Fila de la acción transparente sin tarjeta contenedora */
+.action-item { 
+  gap: 18px; 
+  padding: 8px 4px; 
+  background: transparent !important; 
+  border: none !important; 
+  border-radius: 0;
+  cursor: pointer; 
+  user-select: none; 
+  box-shadow: none !important; 
+  transition: opacity 0.2s; 
+  display: flex; 
+  align-items: center; 
+  justify-content: flex-start !important; 
+  width: 100%; 
+}
+
+.action-item:hover { 
+  opacity: 0.85; 
+  background: transparent !important; 
+}
+
+.action-item:active { 
+  transform: scale(0.98); 
+  opacity: 0.7; 
+}
+
+/* Círculo verde sólido de las opciones */
+.fab-btn { 
+  width: 48px; 
+  height: 48px; 
+  border-radius: 50%; 
+  background: var(--green) !important; 
+  border: 0; 
+  color: #000000; 
+  flex-shrink: 0; 
+  pointer-events: none; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+}
+
+/* Íconos SVG negros dentro del círculo verde */
+.fab-btn svg { 
+  width: 24px; 
+  height: 24px; 
+  fill: #000000 !important; 
+  stroke: #000000 !important;
+  color: #000000 !important;
+}
+
+/* Texto de la acción */
+.action-label { 
+  font-size: 16px; 
+  font-weight: 600; 
+  color: #ffffff; 
+}
