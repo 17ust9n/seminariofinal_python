@@ -2,174 +2,206 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Starssenger - Nuevo Chat{% endblock %}</title>
-
-    <!-- CSS principal -->
-    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=125">
-
-    <!-- Cargamos Libsodium de forma local y estable desde tu Django -->
-    <script src="{% static 'js/sodium.js' %}"></script>
-
-    {% block extra_head %}{% endblock %}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nueva conversación</title>
+<link rel="stylesheet" href="{% static 'estilos.css' %}?v=125">
 </head>
 <body>
 
-<div class="wrap">
-    <div id="newchat" class="screen on">
-        <!-- Header profesional unificado -->
-        <header>
-            <button class="back-btn" onclick="window.location.href='{% url 'home' %}'" title="Volver">
-                &larr;
-            </button>
-            <b class="brand">Nuevo Chat</b>
-        </header>
+  <div class="wrap">
+  <div class="newchat">
 
-        <!-- Contenedor scrollable principal sin estilos inline -->
-        <main id="list">
-            <!-- Buscador estilizado -->
-            <div class="searchwrap">
-                <input id="newChatSearch" 
-                       type="text" 
-                       placeholder="Escribe el nombre o teléfono del contacto…" 
-                       oninput="liveSearchNewChat()" 
-                       autocomplete="off">
-            </div>
-
-            <!-- Lista vertical de acciones principales -->
-            <div class="action-list">
-                <!-- Fila 1: Nuevo contacto -->
-                <div class="action-item" onclick="openAddModal()">
-                    <button class="fab-btn" title="Nuevo contacto">
-                        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                        </svg>
-                    </button>
-                    <span class="action-label">Nuevo contacto</span>
-                </div>
-
-                <!-- Fila 2: Importar contactos -->
-                <div class="action-item" onclick="importContacts()">
-                    <button class="fab-btn" title="Importar contactos">
-                        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-                            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-                        </svg>
-                    </button>
-                    <span class="action-label">Importar contactos</span>
-                </div>
-
-                <!-- Fila 3: Nuevo grupo -->
-                <div class="action-item" onclick="openNewGroupModal()">
-                    <button class="fab-btn" title="Nuevo grupo">
-                        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-                            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
-                        </svg>
-                    </button>
-                    <span class="action-label">Nuevo grupo</span>
-                </div>
-            </div>
-
-            <!-- Subtítulo de sección con clase global -->
-            <div class="section-header">Mis contactos</div>
-
-            <!-- Lista de Contactos -->
-            <div id="contacts-list">
-                {% for contact in contacts %}
-                    <div class="row contact-item" id="contact-item-{{ contact.id }}" onclick="openChat('{{ contact.phone_number }}')">
-                        <!-- Avatar dinámico -->
-                        <div class="av">
-                            {{ contact.name|slice:":1"|upper }}
-                        </div>
-
-                        <!-- Información -->
-                        <div class="rmid">
-                            <div class="rname">{{ contact.name }}</div>
-                            <div class="rprev">{{ contact.phone_number }}</div>
-                        </div>
-
-                        <!-- Acciones profesionales (Editar/Eliminar) -->
-                        <div class="rright" onclick="event.stopPropagation();">
-                            <button onclick="openEditModal('{{ contact.id }}', '{{ contact.name|escapejs }}', '{{ contact.phone_number|escapejs }}', '{{ contact.public_key|escapejs }}')" title="Editar" class="icon-btn">
-                                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                                    <path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-                                </svg>
-                            </button>
-                            
-                            <button onclick="deleteContact('{{ contact.id }}')" title="Eliminar" class="icon-btn dangerous">
-                                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                {% empty %}
-                    <div class="empty">No tienes contactos guardados.</div>
-                {% endfor %}
-            </div>
-        </main>
-    </div>
+<div class="newchat-header">
+  <button class="back-newchat" onclick="history.back()" title="Volver">
+  <span>←</span> </button>
+  <h2>Nueva conversación</h2>
 </div>
 
-<!-- Modal para Agregar / Editar Contacto unificado con tu clase .modal y .card -->
+  <div class="search">
+    <input id="newchatSearch" type="text" placeholder="Buscar contacto..." oninput="liveSearchNewChat()" autocomplete="off">
+  </div>
+
+  <div class="actions">
+    <div class="action" onclick="openAddModal()"><div class="action-icon">➕</div><span>Nuevo contacto</span></div>
+    <div class="action" onclick="importContacts()"><div class="action-icon">📥</div><span>Importar contactos</span></div>
+    <div class="action" onclick="openNewGroupModal()"><div class="action-icon">👥</div><span>Nuevo grupo</span></div>
+  </div>
+
+  <div id="contactsList">
+    {% for contact in contacts %}
+    <div class="row contact-item" id="contact-item-{{ contact.id }}" onclick="openChat('{{ contact.phone_number|escapejs }}')">
+      <div class="av">{{ contact.name|slice:":1"|upper }}</div>
+      <div class="rmid">
+        <div class="rname">{{ contact.name }}</div>
+        <div class="rprev">{{ contact.phone_number }}</div>
+      </div>
+      <div class="rright contact-actions" onclick="event.stopPropagation()">
+        <button type="button" class="contact-btn edit" onclick="openEditModal('{{ contact.id }}','{{ contact.name|escapejs }}','{{ contact.phone_number|escapejs }}','')" title="Editar">✎</button>
+        <button type="button" class="contact-btn delete" onclick="deleteContact('{{ contact.id }}')" title="Eliminar">×</button>
+      </div>
+    </div>
+    {% empty %}
+    <div class="empty">No tienes contactos guardados.</div>
+    {% endfor %}
+  </div>
+</div>
+
 <div id="contactModal" class="modal">
-    <div class="card">
-        <h3 id="modalTitle">Agregar Contacto</h3>
-        <input type="hidden" id="cId">
-        
-        <label for="cName">Nombre</label>
-        <input type="text" id="cName" placeholder="Nombre completo">
-        
-        <label for="cNum">Teléfono</label>
-        <input type="text" id="cNum" placeholder="Número de teléfono">
-        
-        <label for="cPubKey">Clave Pública de Libsodium (Base64)</label>
-        <input type="text" id="cPubKey" placeholder="Clave pública del contacto (opcional)">
+  <div class="card">
+    {% csrf_token %}
+    <h3 id="modalTitle">Agregar Contacto</h3>
+    <input type="hidden" id="cId">
 
-        <div class="mrow modal-actions">
-            <button onclick="closeModal()" class="btn ghost">Cancelar</button>
-            <button onclick="saveContact()" class="btn">💾 Guardar</button>
-        </div>
+    <label for="cName">Nombre</label>
+    <input id="cName" type="text" placeholder="Nombre completo">
+
+    <label for="cNum">Teléfono</label>
+    <input id="cNum" type="text" placeholder="Número de teléfono">
+
+    <label for="cPubKey">Clave Pública de Libsodium (Base64)</label>
+    <input id="cPubKey" type="text" placeholder="Clave pública (opcional)">
+
+    <div class="mrow modal-actions">
+      <button type="button" onclick="closeModal()" class="btn ghost">Cancelar</button>
+      <button id="saveContactBtn" type="button" onclick="saveContact()" class="btn">💾 Guardar</button>
     </div>
+  </div>
 </div>
+
+<script src="{% static 'js/sodium.js' %}"></script>
 
 <script>
-document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        await sodium.ready;
-        console.log("Libsodium listo en nuevo chat.");
-    } catch (e) {
-        console.error("Error al cargar Libsodium:", e);
-    }
-});
-
 function openChat(phone) {
-    if (phone) window.location.href = `/chat/?to=${phone}`;
+  if (phone) window.location.href = "{% url 'chat' %}?to=" + encodeURIComponent(phone);
 }
 
-function closeModal() {
-    document.getElementById('contactModal').classList.remove('on');
+function liveSearchNewChat() {
+  const input = document.getElementById("newchatSearch");
+  if (!input) return;
+  const query = input.value.toLowerCase().trim();
+
+  document.querySelectorAll(".contact-item").forEach(row => {
+    const name = row.querySelector(".rname")?.textContent.toLowerCase() || "";
+    const phone = row.querySelector(".rprev")?.textContent.toLowerCase() || "";
+    row.style.display = name.includes(query) || phone.includes(query) ? "" : "none";
+  });
 }
 
 function openAddModal() {
-    document.getElementById('modalTitle').textContent = 'Agregar Contacto';
-    document.getElementById('cId').value = '';
-    document.getElementById('cName').value = '';
-    document.getElementById('cNum').value = '';
-    document.getElementById('cPubKey').value = '';
-    document.getElementById('contactModal').classList.add('on');
+  document.getElementById("cId").value = "";
+  document.getElementById("cName").value = "";
+  document.getElementById("cNum").value = "";
+  document.getElementById("cPubKey").value = "";
+  document.getElementById("modalTitle").textContent = "Agregar Contacto";
+  document.getElementById("contactModal").classList.add("on");
+  setTimeout(() => document.getElementById("cName").focus(), 100);
 }
 
-function openEditModal(id, name, phone, pubKey = '') {
-    document.getElementById('modalTitle').textContent = 'Modificar Contacto';
-    document.getElementById('cId').value = id;
-    document.getElementById('cName').value = name;
-    document.getElementById('cNum').value = phone;
-    document.getElementById('cPubKey').value = pubKey;
-    document.getElementById('contactModal').classList.add('on');
+function openEditModal(id, name, phone, pubKey) {
+  document.getElementById("cId").value = id || "";
+  document.getElementById("cName").value = name || "";
+  document.getElementById("cNum").value = phone || "";
+  document.getElementById("cPubKey").value = pubKey || "";
+  document.getElementById("modalTitle").textContent = "Editar Contacto";
+  document.getElementById("contactModal").classList.add("on");
+  setTimeout(() => document.getElementById("cName").focus(), 100);
 }
 
-// Completar con el resto de tus funciones AJAX (saveContact, deleteContact, liveSearchNewChat)
+function closeModal() {
+  document.getElementById("contactModal").classList.remove("on");
+}
+
+function getCSRF() {
+  const input = document.querySelector("#contactModal input[name='csrfmiddlewaretoken']");
+  if (input) return input.value;
+  const cookie = document.cookie.split("; ").find(row => row.startsWith("csrftoken="));
+  return cookie ? decodeURIComponent(cookie.split("=")[1]) : "";
+}
+
+async function saveContact() {
+  const id = document.getElementById("cId").value.trim();
+  const name = document.getElementById("cName").value.trim();
+  const phone = document.getElementById("cNum").value.trim();
+  const pubKey = document.getElementById("cPubKey").value.trim();
+
+  if (!name) return alert("Ingresa el nombre del contacto.");
+  if (!phone) return alert("Ingresa el número de teléfono.");
+
+  try {
+    const response = await fetch("{% url 'modal_handler' 'mContact' %}", {
+      method: "POST",
+      headers: {"Content-Type":"application/json","X-CSRFToken":getCSRF(),"X-Requested-With":"XMLHttpRequest"},
+      body: JSON.stringify({cId:id,cName:name,cNum:phone,cPubKey:pubKey})
+    });
+
+    const data = await response.json();
+
+    if (data.status === "success") {
+      closeModal();
+      window.location.reload();
+    } else {
+      alert(data.message || "No se pudo guardar el contacto.");
+    }
+  } catch (error) {
+    console.error(error);
+    alert("No se pudo conectar con el servidor.");
+  }
+}
+
+async function deleteContact(id) {
+  if (!id || !confirm("¿Estás seguro de que quieres eliminar este contacto?")) return;
+
+  try {
+    const response = await fetch("/api/delete-contact/" + encodeURIComponent(id) + "/", {
+      method: "POST",
+      headers: {"X-CSRFToken":getCSRF(),"X-Requested-With":"XMLHttpRequest"}
+    });
+
+    const data = await response.json();
+
+    if (data.status === "success") {
+      const row = document.getElementById("contact-item-" + id);
+      if (row) row.remove();
+
+      if (document.querySelectorAll(".contact-item").length === 0) {
+        window.location.reload();
+      }
+    } else {
+      alert(data.message || "No se pudo eliminar el contacto.");
+    }
+  } catch (error) {
+    console.error(error);
+    alert("No se pudo conectar con el servidor.");
+  }
+}
+
+function importContacts() {
+  alert("La importación de contactos todavía no está conectada.");
+}
+
+function openNewGroupModal() {
+  alert("La creación de grupos todavía no está conectada.");
+}
+
+document.addEventListener("click", event => {
+  const modal = document.getElementById("contactModal");
+  if (modal && event.target === modal) closeModal();
+});
+
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") closeModal();
+
+  const modal = document.getElementById("contactModal");
+  const active = document.activeElement;
+
+  if (event.key === "Enter" && modal?.classList.contains("show") &&
+      ["cName","cNum","cPubKey"].includes(active?.id)) {
+    event.preventDefault();
+    saveContact();
+  }
+});
 </script>
+
 </body>
 </html>

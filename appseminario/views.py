@@ -466,3 +466,41 @@ def terms(request):
     Renderiza la pantalla de 'Términos y Condiciones'.
     """
     return render(request, 'terms.html')
+
+
+
+@require_POST
+def delete_contact_api(request, contact_id):
+    """
+    Elimina un contacto guardado por el usuario actual.
+    """
+    try:
+        current_user = (
+            request.user
+            if request.user.is_authenticated
+            else User.objects.get_or_create(username="invitado")[0]
+        )
+
+        contact = Contact.objects.filter(
+            id=contact_id,
+            user=current_user
+        ).first()
+
+        if not contact:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Contacto no encontrado.'
+            }, status=404)
+
+        contact.delete()
+
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Contacto eliminado correctamente.'
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)

@@ -76,19 +76,52 @@ label { font-size: 13px; color: var(--mut); display: block; margin: 14px 0 5px; 
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn.ghost, .modal-actions .btn.ghost { background: #0e263b; color: #eaf2f8; border: 1px solid var(--line); }
 
+
+
+
 /* Botones de íconos */
-.iconbtn, .back, .back-btn, .btn-back { background: none; border: 0; cursor: pointer; line-height: 1; display: flex; align-items: center; }
-.iconbtn { color: #eaf2f8; font-size: 22px; padding: 4px 6px; }
-.back, .back-btn, .btn-back { 
-  color: var(--green) !important; 
-  font-size: 26px; 
-  padding-right: 8px; 
-  text-decoration: none; 
-  font-weight: bold;
-}
-.back-btn, .btn-back { font-size: 24px; padding: 4px 8px; justify-content: center; transition: opacity 0.2s; }
-.back-btn:hover, .btn-back:hover { opacity: 0.8; }
-.back-btn:active, .btn-back:active { opacity: 0.5; }
+.iconbtn,.back,.back-btn,.btn-back{background:none;border:0;cursor:pointer;line-height:1;display:flex;align-items:center}
+
+.iconbtn{color:#eaf2f8;font-size:22px;padding:4px 6px}
+
+.back,.back-btn,.btn-back{color:var(--green)!important;font-size:26px;padding-right:8px;text-decoration:none;font-weight:bold}
+
+.back-btn,.btn-back{font-size:24px;padding:4px 8px;justify-content:center;transition:opacity .2s}
+
+.back-btn:hover,.btn-back:hover{opacity:.8}
+.back-btn:active,.btn-back:active{opacity:.5}
+
+/* Flecha de Nueva conversación */
+.back-newchat{width:42px;height:42px;background:transparent;border:0;border-radius:50%;color:var(--green);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:.15s}
+.back-newchat svg{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.back-newchat:hover{background:rgba(33,195,111,.1)}
+.back-newchat:active{transform:scale(.86);background:rgba(33,195,111,.16)}
+
+.newchat-header{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--navy2);border-bottom:1px solid var(--line);min-height:56px}
+.newchat-header h2{font-size:18px;font-weight:600;color:#fff}
+.back-newchat{width:40px;height:40px;background:transparent;border:0;border-radius:50%;color:var(--green);font-size:38px;font-weight:300;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:.15s}
+.back-newchat:hover{background:rgba(33,195,111,.1)}
+.back-newchat:active{transform:scale(.82);background:rgba(33,195,111,.16)}
+
+
+.contact-actions{display:flex;flex-direction:row;align-items:center;gap:6px}
+.contact-btn{width:36px;height:36px;border:1px solid var(--line);border-radius:10px;background:var(--navy2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:19px;line-height:1;transition:.15s}
+.contact-btn.edit{color:var(--green)}
+.contact-btn.delete{color:#e05a5a}
+.contact-btn:hover{background:#183b58;transform:translateY(-1px)}
+.contact-btn.delete:hover{background:rgba(192,57,43,.15)}
+.contact-btn:active{transform:scale(.88)}
+
+
+.headbtns{display:flex;align-items:center;gap:6px;margin-left:auto}
+.chat-call-btn{width:40px;height:40px;border:1px solid var(--line);border-radius:11px;background:var(--navy);display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;transition:.15s}
+.chat-call-btn svg{width:21px;height:21px;fill:currentColor}
+.chat-call-btn.voice{color:var(--green)}
+.chat-call-btn.video{color:#6fc7ff}
+.chat-call-btn:hover{background:var(--navy2);transform:translateY(-1px)}
+.chat-call-btn:active{transform:scale(.88)}
+
+
 
 /* Ajustes a la barra de entrada de mensaje (#bar) */
 #bar button { 
@@ -228,16 +261,83 @@ label { font-size: 13px; color: var(--mut); display: block; margin: 14px 0 5px; 
   color: var(--green) !important; 
 }
 
-.modal { position: absolute; inset: 0; background: rgba(3, 10, 18, .7); z-index: 20; display: none; padding: 18px; }
-.modal.on { display: flex; }
-.card, .info-card, .key-display { background: var(--navy2); border: 1px solid var(--line); border-radius: 16px; padding: 18px; width: 100%; max-width: 420px; max-height: 88vh; }
-.card h3 { margin: 0 0 4px; font-size: 18px; }
-.mrow { display: flex; gap: 10px; margin-top: 16px; }
-.mrow .btn { flex: 1; }
-.picklist { margin-top: 10px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+/* MODAL Y TARJETA INTERNA CORREGIDOS */
+.modal { 
+  position: absolute; 
+  inset: 0; 
+  background: rgba(3, 10, 18, .85); 
+  z-index: 20; 
+  display: none; 
+  align-items: center; 
+  justify-content: center; 
+  padding: 16px; 
+}
+.modal.on { 
+  display: flex !important; 
+}
+
+.card, .info-card, .key-display { 
+  background: var(--navy2); 
+  border: 1px solid var(--line); 
+  border-radius: 16px; 
+  padding: 20px; 
+  width: 100%; 
+  max-width: 380px; 
+  max-height: 88vh; 
+  overflow-y: auto;
+  box-sizing: border-box;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px;
+}
+
+.card h3 { 
+  margin: 0 0 6px; 
+  font-size: 18px; 
+  color: #ffffff;
+}
+
+.card label {
+  margin: 4px 0 2px;
+  font-size: 12px;
+  color: var(--mut);
+}
+
+.card input, .card textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* FILA Y BOTONES ACCIÓN MODAL */
+.mrow, .modal-actions { 
+  display: flex !important; 
+  flex-direction: row !important;
+  gap: 10px !important; 
+  margin-top: 14px !important; 
+  width: 100% !important;
+}
+
+/* Reset del botón global dentro de modales */
+.mrow .btn, .modal-actions .btn { 
+  flex: 1 !important; 
+  width: 50% !important;
+  border-radius: 10px !important; 
+  padding: 0 12px !important; 
+  font-size: 14px !important; 
+  height: 44px !important;
+  min-height: 44px !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+}
+
+.picklist { 
+  margin-top: 10px; 
+  border: 1px solid var(--line); 
+  border-radius: 10px; 
+  overflow: hidden; 
+}
 .pick:last-child { border-bottom: 0; }
 .pick input { width: 20px; height: 20px; flex: none; }
-
 
 
 
@@ -373,3 +473,57 @@ input:checked + .slider:before { transform: translateX(24px); }
   font-weight: 600; 
   color: #ffffff; 
 }
+
+/* BOTONES CIRCULARES DE NUEVO CHAT */
+.actions {
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  padding:16px;
+}
+
+.action {
+  display:flex;
+  align-items:center;
+  gap:14px;
+  cursor:pointer;
+  user-select:none;
+  transition:transform .15s, opacity .15s;
+}
+
+.action:active {
+  transform:scale(.94);
+  opacity:.7;
+}
+
+.action::first-letter {
+  color:#000;
+}
+
+.action-icon {
+  width:48px;
+  height:48px;
+  min-width:48px;
+  border-radius:50%;
+  background:var(--green);
+  color:#000;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:22px;
+  box-shadow:0 3px 10px rgba(0,0,0,.25);
+  transition:transform .15s, box-shadow .15s;
+}
+
+.action:active .action-icon {
+  transform:scale(.9);
+  box-shadow:0 1px 4px rgba(0,0,0,.2);
+}
+
+.action span {
+  color:#fff;
+  font-size:16px;
+  font-weight:600;
+}
+
+

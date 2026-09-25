@@ -21,11 +21,12 @@ urlpatterns = [
     # --- Modales / Acciones Asíncronas ---
     path('modal/<str:modal_type>/', views.modal_handler, name='modal_handler'),
 
-    # --- API de Mensajes y Audios ---
+    # --- API de Mensajes y Contactos ---
     path('api/send-message/', views.send_message_api, name='send_message_api'),
     path('api/delete-message/<int:message_id>/', views.delete_message_api, name='delete_message_api'),
     path('api/hide-chat/<int:room_id>/', views.hide_chat_from_home_api, name='hide_chat_from_home_api'),
     path('api/search-users/', views.search_users_api, name='search_users_api'),
+    path('api/delete-contact/<int:contact_id>/', views.delete_contact_api, name='delete_contact_api'),
     path('api/update-security-level/', views.update_security_level_api, name='update_security_level_api'),
 
     path('logout/', views.logout_view, name='logout'),
