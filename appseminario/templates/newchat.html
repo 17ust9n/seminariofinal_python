@@ -72,131 +72,127 @@
 <script src="{% static 'js/sodium.js' %}"></script>
 
 <script>
-function openChat(phone) {
-  if (phone) window.location.href = "{% url 'chat' %}?to=" + encodeURIComponent(phone);
+function openChat(phone){
+  if(phone) window.location.href="{% url 'chat' %}?to="+encodeURIComponent(phone);
 }
 
-function liveSearchNewChat() {
-  const input = document.getElementById("newchatSearch");
-  if (!input) return;
-  const query = input.value.toLowerCase().trim();
-
-  document.querySelectorAll(".contact-item").forEach(row => {
-    const name = row.querySelector(".rname")?.textContent.toLowerCase() || "";
-    const phone = row.querySelector(".rprev")?.textContent.toLowerCase() || "";
-    row.style.display = name.includes(query) || phone.includes(query) ? "" : "none";
+function liveSearchNewChat(){
+  const input=document.getElementById("newchatSearch");
+  if(!input)return;
+  const query=input.value.toLowerCase().trim();
+  document.querySelectorAll(".contact-item").forEach(row=>{
+    const name=row.querySelector(".rname")?.textContent.toLowerCase()||"";
+    const phone=row.querySelector(".rprev")?.textContent.toLowerCase()||"";
+    row.style.display=name.includes(query)||phone.includes(query)?"":"none";
   });
 }
 
-function openAddModal() {
-  document.getElementById("cId").value = "";
-  document.getElementById("cName").value = "";
-  document.getElementById("cNum").value = "";
-  document.getElementById("cPubKey").value = "";
-  document.getElementById("modalTitle").textContent = "Agregar Contacto";
+function openAddModal(){
+  document.getElementById("cId").value="";
+  document.getElementById("cName").value="";
+  document.getElementById("cNum").value="";
+  document.getElementById("cPubKey").value="";
+  document.getElementById("modalTitle").textContent="Agregar Contacto";
   document.getElementById("contactModal").classList.add("on");
-  setTimeout(() => document.getElementById("cName").focus(), 100);
+  setTimeout(()=>document.getElementById("cName").focus(),100);
 }
 
-function openEditModal(id, name, phone, pubKey) {
-  document.getElementById("cId").value = id || "";
-  document.getElementById("cName").value = name || "";
-  document.getElementById("cNum").value = phone || "";
-  document.getElementById("cPubKey").value = pubKey || "";
-  document.getElementById("modalTitle").textContent = "Editar Contacto";
+function openEditModal(id,name,phone,pubKey){
+  document.getElementById("cId").value=id||"";
+  document.getElementById("cName").value=name||"";
+  document.getElementById("cNum").value=phone||"";
+  document.getElementById("cPubKey").value=pubKey||"";
+  document.getElementById("modalTitle").textContent="Editar Contacto";
   document.getElementById("contactModal").classList.add("on");
-  setTimeout(() => document.getElementById("cName").focus(), 100);
+  setTimeout(()=>document.getElementById("cName").focus(),100);
 }
 
-function closeModal() {
+function closeModal(){
   document.getElementById("contactModal").classList.remove("on");
 }
 
-function getCSRF() {
-  const input = document.querySelector("#contactModal input[name='csrfmiddlewaretoken']");
-  if (input) return input.value;
-  const cookie = document.cookie.split("; ").find(row => row.startsWith("csrftoken="));
-  return cookie ? decodeURIComponent(cookie.split("=")[1]) : "";
+function getCSRF(){
+  const input=document.querySelector("#contactModal input[name='csrfmiddlewaretoken']");
+  if(input)return input.value;
+  const cookie=document.cookie.split("; ").find(row=>row.startsWith("csrftoken="));
+  return cookie?decodeURIComponent(cookie.split("=")[1]):"";
 }
 
-async function saveContact() {
-  const id = document.getElementById("cId").value.trim();
-  const name = document.getElementById("cName").value.trim();
-  const phone = document.getElementById("cNum").value.trim();
-  const pubKey = document.getElementById("cPubKey").value.trim();
+async function saveContact(){
+  const id=document.getElementById("cId").value.trim();
+  const name=document.getElementById("cName").value.trim();
+  const phone=document.getElementById("cNum").value.trim();
 
-  if (!name) return alert("Ingresa el nombre del contacto.");
-  if (!phone) return alert("Ingresa el número de teléfono.");
+  if(!name)return alert("Ingresa el nombre del contacto.");
+  if(!phone)return alert("Ingresa el número de teléfono.");
 
-  try {
-    const response = await fetch("{% url 'modal_handler' 'mContact' %}", {
-      method: "POST",
-      headers: {"Content-Type":"application/json","X-CSRFToken":getCSRF(),"X-Requested-With":"XMLHttpRequest"},
-      body: JSON.stringify({cId:id,cName:name,cNum:phone,cPubKey:pubKey})
+  try{
+    const r=await fetch("{% url 'modal_handler' 'mContact' %}",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","X-CSRFToken":getCSRF(),"X-Requested-With":"XMLHttpRequest"},
+      body:JSON.stringify({cId:id,cName:name,cNum:phone})
     });
 
-    const data = await response.json();
+    const text=await r.text();
+    let data;
+    try{data=JSON.parse(text)}catch(e){throw new Error("Servidor respondió "+r.status+": "+text.substring(0,200))}
 
-    if (data.status === "success") {
+    if(data.status==="success"){
       closeModal();
       window.location.reload();
-    } else {
-      alert(data.message || "No se pudo guardar el contacto.");
+    }else{
+      alert(data.message||"No se pudo guardar el contacto.");
     }
-  } catch (error) {
-    console.error(error);
-    alert("No se pudo conectar con el servidor.");
+  }catch(error){
+    console.error("ERROR GUARDANDO CONTACTO:",error);
+    alert("Error al guardar: "+error.message);
   }
 }
 
-async function deleteContact(id) {
-  if (!id || !confirm("¿Estás seguro de que quieres eliminar este contacto?")) return;
+async function deleteContact(id){
+  if(!id||!confirm("¿Estás seguro de que quieres eliminar este contacto?"))return;
 
-  try {
-    const response = await fetch("/api/delete-contact/" + encodeURIComponent(id) + "/", {
-      method: "POST",
-      headers: {"X-CSRFToken":getCSRF(),"X-Requested-With":"XMLHttpRequest"}
+  try{
+    const response=await fetch("/api/delete-contact/"+encodeURIComponent(id)+"/",{
+      method:"POST",
+      headers:{"X-CSRFToken":getCSRF(),"X-Requested-With":"XMLHttpRequest"}
     });
 
-    const data = await response.json();
+    const data=await response.json();
 
-    if (data.status === "success") {
-      const row = document.getElementById("contact-item-" + id);
-      if (row) row.remove();
-
-      if (document.querySelectorAll(".contact-item").length === 0) {
-        window.location.reload();
-      }
-    } else {
-      alert(data.message || "No se pudo eliminar el contacto.");
+    if(data.status==="success"){
+      const row=document.getElementById("contact-item-"+id);
+      if(row)row.remove();
+      if(document.querySelectorAll(".contact-item").length===0)window.location.reload();
+    }else{
+      alert(data.message||"No se pudo eliminar el contacto.");
     }
-  } catch (error) {
+  }catch(error){
     console.error(error);
     alert("No se pudo conectar con el servidor.");
   }
 }
 
-function importContacts() {
+function importContacts(){
   alert("La importación de contactos todavía no está conectada.");
 }
 
-function openNewGroupModal() {
+function openNewGroupModal(){
   alert("La creación de grupos todavía no está conectada.");
 }
 
-document.addEventListener("click", event => {
-  const modal = document.getElementById("contactModal");
-  if (modal && event.target === modal) closeModal();
+document.addEventListener("click",event=>{
+  const modal=document.getElementById("contactModal");
+  if(modal&&event.target===modal)closeModal();
 });
 
-document.addEventListener("keydown", event => {
-  if (event.key === "Escape") closeModal();
+document.addEventListener("keydown",event=>{
+  if(event.key==="Escape")closeModal();
 
-  const modal = document.getElementById("contactModal");
-  const active = document.activeElement;
+  const modal=document.getElementById("contactModal");
+  const active=document.activeElement;
 
-  if (event.key === "Enter" && modal?.classList.contains("show") &&
-      ["cName","cNum","cPubKey"].includes(active?.id)) {
+  if(event.key==="Enter"&&modal?.classList.contains("on")&&["cName","cNum","cPubKey"].includes(active?.id)){
     event.preventDefault();
     saveContact();
   }
