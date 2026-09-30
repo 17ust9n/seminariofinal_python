@@ -28,6 +28,18 @@ urlpatterns = [
     path('api/search-users/', views.search_users_api, name='search_users_api'),
     path('api/delete-contact/<int:contact_id>/', views.delete_contact_api, name='delete_contact_api'),
     path('api/update-security-level/', views.update_security_level_api, name='update_security_level_api'),
+    
+    
+
+    # --- API de Grupos ---
+    path('api/create-group/', views.create_group_api, name='create_group_api'),
+    path('api/edit-group/<int:group_id>/', views.edit_group_api, name='edit_group_api'),
+    path('api/delete-group/<int:group_id>/', views.delete_group_api, name='delete_group_api'),
+    
+    # 🔑 AGREGA ESTA LÍNEA CRÍTICA PARA SOLUCIONAR EL ERROR 404:
+    path('actualizar-clave-publica/', views.actualizar_clave_publica_api, name='actualizar_clave_publica_api'),
+
+
 
     path('logout/', views.logout_view, name='logout'),
 ]

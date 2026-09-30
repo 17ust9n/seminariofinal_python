@@ -65,7 +65,7 @@ def home(request):
     else:
         current_user, _ = User.objects.get_or_create(username="invitado")
 
-    # Obtener únicamente los contactos visibles marcados para el Home
+    # 1. Obtener los contactos visibles marcados para el Home
     contacts = Contact.objects.filter(user=current_user, visible_in_home=True)
 
     contacts_data = []
@@ -74,9 +74,20 @@ def home(request):
         
         contacts_data.append({
             'id': c.id,
-            'contact_id': c.id,
+            'is_group': False,
             'name': display_name,
             'phone_number': c.phone_number,
+        })
+
+    # 2. INTRODUCCIÓN CRÍTICA: Obtener las conversaciones grupales del usuario
+    groups = Conversation.objects.filter(is_group=True, participants=current_user)
+    for g in groups:
+        contacts_data.append({
+            'id': f"group-{g.id}", # ID seguro para el DOM
+            'is_group': True,
+            'name': g.name or "Grupo sin nombre",
+            'phone_number': f"Sala {g.id}", # Texto auxiliar descriptivo
+            'room_id': g.id
         })
 
     return render(request, 'home.html', {'contacts': contacts_data})
@@ -163,9 +174,22 @@ def chat(request):
 
 
 def newchat(request):
-    current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
+    if request.user.is_authenticated:
+        current_user = request.user
+    else:
+        current_user, _ = User.objects.get_or_create(username="invitado")
+        
+    # Obtener los contactos individuales del usuario
     contacts = Contact.objects.filter(user=current_user)
-    return render(request, 'newchat.html', {'contacts': contacts})
+    
+    # Obtener los grupos en los que participa el usuario
+    groups = Conversation.objects.filter(is_group=True, participants=current_user)
+    
+    return render(request, 'newchat.html', {
+        'contacts': contacts,
+        'groups': groups
+    })
+
 
 
 def call(request):
@@ -186,10 +210,126 @@ def profile(request):
     return render(request, 'profile.html', {'profile': prof})
 
 
+# ==========================================
+# 2. NUEVOS ENDPOINTS ASÍNCRONOS PROTEGIDOS
+# ==========================================
+
+@csrf_exempt
+@require_POST
+def create_group_api(request):
+    """
+    Crea un nuevo grupo de forma persistente y asíncrona sin interferir con la sesión.
+    """
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+        group_name = data.get('name', '').strip()
+        participant_phones = data.get('participants', [])
+
+        if not group_name:
+            return JsonResponse({'status': 'error', 'message': 'El nombre del grupo es obligatorio.'}, status=400)
+
+        if request.user.is_authenticated:
+            current_user = request.user
+        else:
+            current_user, _ = User.objects.get_or_create(username="invitado")
+
+        # Generar conversación persistente de tipo grupal
+        conversation = Conversation.objects.create(
+            is_group=True,
+            name=group_name,
+            created_by=current_user
+        )
+        
+        # El creador ingresa como primer participante
+        conversation.participants.add(current_user)
+
+        # Asociar a los miembros restantes marcados
+        for phone in participant_phones:
+            user_to_add = User.objects.filter(username=phone).first()
+            if user_to_add:
+                conversation.participants.add(user_to_add)
+
+        return JsonResponse({
+            'status': 'success', 
+            'message': 'Grupo registrado de forma persistente.',
+            'room_id': conversation.id
+        }, status=200)
+
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Estructura JSON inválida.'}, status=400)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'Falla interna: {str(e)}'}, status=500)
+
+
+@csrf_exempt
+@require_POST
+def edit_group_api(request, group_id):
+    """
+    Modifica el nombre de una conversación grupal.
+    """
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+        new_name = data.get('name', '').strip()
+        
+        if not new_name:
+            return JsonResponse({'status': 'error', 'message': 'El nombre no puede estar vacío.'}, status=400)
+            
+        group = get_object_or_404(Conversation, id=group_id, is_group=True)
+        group.name = new_name
+        group.save()
+        
+        return JsonResponse({'status': 'success', 'message': 'Nombre del grupo actualizado.'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_POST
+def delete_group_api(request, group_id):
+    """
+    Elimina por completo la conversación grupal de la plataforma.
+    """
+    try:
+        group = get_object_or_404(Conversation, id=group_id, is_group=True)
+        group.delete()
+        return JsonResponse({'status': 'success', 'message': 'Grupo eliminado correctamente.'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_POST
+def actualizar_clave_publica_api(request):
+    """
+    Sincroniza la clave Libsodium sin alterar el estado de autenticación del usuario.
+    """
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+        pub_key_base64 = data.get('public_key', '').strip()
+
+        if not pub_key_base64:
+            return JsonResponse({'status': 'error', 'message': 'Clave pública vacía.'}, status=400)
+
+        if request.user.is_authenticated:
+            current_user = request.user
+        else:
+            current_user, _ = User.objects.get_or_create(username="invitado")
+
+        profile_obj, _ = UserProfile.objects.get_or_create(user=current_user)
+        profile_obj.pub_key = pub_key_base64
+        profile_obj.save()
+
+        return JsonResponse({'status': 'success', 'message': 'Llave guardada en Django de forma segura.'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
 @csrf_exempt
 def onboard(request):
     """
-    Inicia sesión de usuario usando su número telefónico y almacena su clave pública de Libsodium.
+    Maneja el Onboarding de usuarios.
+    Si es POST: Inicia sesión usando su número telefónico y almacena su clave de Libsodium.
+    Si es GET: Renderiza la pantalla visual de Onboarding.
     """
     if request.method == 'POST':
         try:
@@ -200,47 +340,28 @@ def onboard(request):
             if phone:
                 user, _ = User.objects.get_or_create(username=phone)
                 
-                profile, _ = UserProfile.objects.get_or_create(user=user)
+                profile_obj, _ = UserProfile.objects.get_or_create(user=user)
                 if public_key:
-                    profile.pub_key = public_key
-                    profile.save()
+                    profile_obj.pub_key = public_key
+                    profile_obj.save()
                 
                 login(request, user)
                 return JsonResponse({'status': 'success', 'redirect_url': reverse('home')})
             
-            return JsonResponse({'status': 'error', 'message': 'Teléfono requerido'}, status=400)
+            return JsonResponse({'status': 'error', 'message': 'Teléfono requerido.'}, status=400)
         except json.JSONDecodeError:
-            return JsonResponse({'status': 'error', 'message': 'JSON Inválido'}, status=400)
+            return JsonResponse({'status': 'error', 'message': 'JSON Inválido.'}, status=400)
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': f'Error interno: {str(e)}'}, status=500)
 
+    # 🔄 SOLUCCIÓN AL ERROR: Si es un GET (carga inicial), renderiza la pantalla de login/onboard
+    # Cambia 'onboard.html' por el nombre real de tu archivo de onboarding si es distinto
     return render(request, 'onboard.html')
 
 
-@csrf_exempt
-def actualizar_clave_publica_api(request):
-    """
-    Endpoint de respaldo (POST) por si se requiere actualizar la clave pública desde home.html de forma aislada.
-    """
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body.decode('utf-8'))
-            public_key = data.get('public_key', '').strip()
-            
-            current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
-            profile, _ = UserProfile.objects.get_or_create(user=current_user)
-            
-            profile.pub_key = public_key
-            profile.save()
-            return JsonResponse({'status': 'success', 'message': 'Clave criptográfica sincronizada.'})
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
-            
-    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
-
 
 # ==========================================
-# 2. MODALES / ACCIONES ASÍNCRONAS
+# 3. MODALES / ACCIONES ASÍNCRONAS
 # ==========================================
 
 @require_POST
