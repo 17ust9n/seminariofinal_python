@@ -108,18 +108,29 @@ def chat_detail(request, room_id=None, username=None):
             conversation = Conversation.objects.create(is_group=False)
             conversation.participants.add(current_user, other_user)
 
-    # Identificar al otro participante para extraer su clave pública y su información de contacto
+    # Identificar al otro participante
     other_participant = conversation.participants.exclude(id=current_user.id).first()
-    display_name = "Chat"
+    
+    # 1. Intentamos leer el nombre desde la URL (?name=...)
+    url_name = request.GET.get('name', '').strip()
+    display_name = url_name if url_name else ""
     contacto_pub_key = ""
 
     if conversation.is_group:
         display_name = conversation.name or "Grupo sin nombre"
     elif other_participant:
-        contact = Contact.objects.filter(user=current_user, phone_number=other_participant.username).first()
-        display_name = contact.name if (contact and contact.name) else other_participant.username
+        # 2. Si no vino por URL o está vacío, buscamos de forma inteligente en Contactos
+        if not display_name or display_name == "Chat":
+            # Buscamos cualquier contacto de este usuario cuyo número coincida con el username del otro
+            contact = Contact.objects.filter(user=current_user, phone_number=other_participant.username).first()
+            
+            if contact and contact.name:
+                display_name = contact.name
+            else:
+                # 3. Si no está agendado, mostramos su teléfono/nombre de usuario en vez de la palabra "Chat"
+                display_name = other_participant.username 
         
-        # Recuperamos u obtenemos el perfil criptográfico del destinatario
+        # Recuperamos el perfil criptográfico
         other_profile, _ = UserProfile.objects.get_or_create(user=other_participant)
         contacto_pub_key = other_profile.pub_key or ""
 
@@ -129,8 +140,10 @@ def chat_detail(request, room_id=None, username=None):
         'conversation': conversation,
         'messages': messages,
         'display_name': display_name,
-        'contacto_pub_key': contacto_pub_key
+        'recipient_public_key': contacto_pub_key,  
+        'is_group': conversation.is_group,
     })
+
 
 
 @csrf_exempt
@@ -153,6 +166,8 @@ def hide_chat_from_home_api(request, contact_id):
 def chat(request):
     """Redirige al chat resolviendo la conversación según el parámetro ?to=NUMERO."""
     phone = request.GET.get('to')
+    name = request.GET.get('name', '') # 👈 1. Capturamos el nombre que viene desde el frontend
+
     if phone:
         target_user, _ = User.objects.get_or_create(username=phone)
         UserProfile.objects.get_or_create(user=target_user)
@@ -168,9 +183,16 @@ def chat(request):
             conversation = Conversation.objects.create(is_group=False, created_by=current_user)
             conversation.participants.add(current_user, target_user)
 
-        return redirect('chat_detail', room_id=conversation.id)
+        # 👈 2. Modificamos el redireccionamiento para incluir el nombre en los parámetros GET
+        from django.urls import reverse
+        url_destino = reverse('chat_detail', kwargs={'room_id': conversation.id})
+        if name:
+            url_destino += f"?name={name}"
+            
+        return redirect(url_destino)
 
     return redirect('home')
+
 
 
 def newchat(request):

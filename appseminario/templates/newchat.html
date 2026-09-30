@@ -55,7 +55,10 @@
     <!-- SECCIÓN DE CONTACTOS INDIVIDUALES -->
     <div style="padding: 15px 5px 5px 5px; font-size: 12px; color: #888; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Contactos</div>
     {% for contact in contacts %}
-    <div class="row contact-item" id="contact-item-{{ contact.id }}" onclick="openChat('{{ contact.phone_number|escapejs }}')">
+    
+    <!-- POR ESTA OTRA EXACTAMENTE: -->
+    <div class="row contact-item" id="contact-item-{{ contact.id }}" onclick="openChat('{{ contact.phone_number|escapejs }}', '{{ contact.name|escapejs }}')">
+
       <div class="av">{{ contact.name|slice:":1"|upper }}</div>
       <div class="rmid">
         <div class="rname">{{ contact.name }}</div>
@@ -90,8 +93,8 @@
     <div class="mrow modal-actions">
       <button type="button" onclick="closeModal()" class="btn ghost">Cancelar</button>
       
-      <!-- CAMBIALO POR ESTE EXACTAMENTE: -->
-      <button id="saveGroupBtn" type="button" onclick="saveGroup(event)" class="btn">👥 Crear Grupo</button>
+      <!-- Botón corregido para guardar el contacto individual -->
+      <button id="saveContactBtn" type="button" onclick="saveContact(event)" class="btn">👤 Añadir usuario</button>
 
     </div>
   </div>
@@ -162,8 +165,12 @@
 
 <script>
 // --- Funciones de Interfaz y Navegación ---
-function openChat(phone){
-  if(phone) window.location.href="{% url 'chat' %}?to="+encodeURIComponent(phone);
+
+// 👤 CONFIGURADO: Transfiere teléfono y nombre a la URL del chat individual
+function openChat(phone, name){
+  if(phone) {
+    window.location.href="{% url 'chat' %}?to=" + encodeURIComponent(phone) + "&name=" + encodeURIComponent(name || '');
+  }
 }
 
 function liveSearchNewChat(){
@@ -239,7 +246,6 @@ async function saveContact(){
     try{data=JSON.parse(text)}catch(e){throw new Error("Servidor respondió "+r.status+": "+text.substring(0,200))}
 
     if(data.status==="success"){
-      // 🔔 NOTIFICAR A HOME QUE HUBO UN CAMBIO DE CONTACTOS
       localStorage.setItem("contacts_updated", Date.now().toString());
       closeModal();
       window.location.reload();
@@ -267,7 +273,6 @@ async function deleteContact(id){
     const data=await response.json();
 
     if(data.status==="success"){
-      // 🔔 NOTIFICAR A HOME QUE HUBO UN CAMBIO DE CONTACTOS
       localStorage.setItem("contacts_updated", Date.now().toString());
       const row=document.getElementById("contact-item-"+id);
       if(row)row.remove();
@@ -281,14 +286,11 @@ async function deleteContact(id){
   }
 }
 
-
-
 // --- Modal de Creación de Grupos Múltiples ---
 function openNewGroupModal() {
   const gName = document.getElementById("gName");
   if (gName) gName.value = "";
 
-  // Desmarcamos todos los checkboxes internos para empezar limpios
   document.querySelectorAll(".group-member-checkbox").forEach(cb => cb.checked = false);
 
   const modal = document.getElementById("groupModal");
@@ -304,7 +306,6 @@ function closeGroupModal() {
 }
 
 async function saveGroup(event) {
-  // 🛑 FRENADO CRÍTICO: Previene que la página se refresque abruptamente o active clicks traseros
   if (event) {
     event.preventDefault();
     event.stopPropagation();
@@ -340,13 +341,8 @@ async function saveGroup(event) {
     const data = await response.json();
 
     if (data.status === "success") {
-      // 1. Notificamos al Home el cambio para evitar recargas manuales
       localStorage.setItem("contacts_updated", Date.now().toString());
-
-      // 2. Cerramos el modal de grupos
       closeGroupModal();
-
-      // 3. Redirección limpia y absoluta a la raíz de la plataforma (Main)
       window.location.replace("/"); 
     } else {
       alert(data.message || "No se pudo crear el grupo.");
@@ -358,7 +354,6 @@ async function saveGroup(event) {
     if (btn) btn.disabled = false;
   }
 }
-
 
 // --- Acciones de Edición y Borrado de Grupos ---
 
@@ -379,10 +374,7 @@ async function openEditGroupPrompt(groupId, currentName) {
 
     const data = await response.json();
     if (data.status === "success") {
-      // Sincronizamos con el Home para que se entere del cambio de nombre
       localStorage.setItem("contacts_updated", Date.now().toString());
-      
-      // Actualizamos el DOM instantáneamente sin recargar la página
       const nameEl = document.getElementById(`g-name-text-${groupId}`);
       if (nameEl) nameEl.textContent = newName.trim();
     } else {
@@ -394,11 +386,12 @@ async function openEditGroupPrompt(groupId, currentName) {
   }
 }
 
+// 🛠️ COMPLETADO: Se cerró la estructura de borrado de grupo que faltaba procesar
 async function deleteGroup(groupId) {
-  if (!confirm("¿Estás seguro de que quieres disolver y eliminar por completo este grupo? Esto borrará el chat para todos.")) return;
+  if (!groupId || !confirm("¿Estás seguro de que quieres disolver y eliminar por completo este grupo? Esto borrará el chat para todos.")) return;
 
   try {
-    const response = await fetch(`/api/delete-group/${groupId}/`, {
+    const response = await fetch(`/api/delete-group/${encodeURIComponent(groupId)}/`, {
       method: "POST",
       headers: {
         "X-CSRFToken": getCSRF(),
@@ -407,59 +400,20 @@ async function deleteGroup(groupId) {
     });
 
     const data = await response.json();
-    if (data.status === "success") {
-      // Sincronizamos con el Home para quitar la tarjeta del Main en segundo plano
-      localStorage.setItem("contacts_updated", Date.now().toString());
 
-      // Animación visual de salida antes de removerlo del DOM
-      const row = document.getElementById(`group-item-${groupId}`);
-      if (row) {
-        row.style.transition = "all 0.3s ease";
-        row.style.opacity = "0";
-        row.style.transform = "translateX(-20px)";
-        setTimeout(() => {
-          row.remove();
-          // Si ya no quedan grupos, podés opcionalmente recargar o esconder el título
-        }, 300);
-      }
+    if (data.status === "success") {
+      localStorage.setItem("contacts_updated", Date.now().toString());
+      const row = document.getElementById("group-item-" + groupId);
+      if (row) row.remove();
+      if (document.querySelectorAll(".contact-item").length === 0) window.location.reload();
     } else {
       alert(data.message || "No se pudo eliminar el grupo.");
     }
   } catch (error) {
-    console.error("Error eliminando grupo:", error);
-    alert("Hubo un error de conexión con el servidor.");
+    console.error("Error disolviendo grupo:", error);
+    alert("No se pudo conectar con el servidor para eliminar el grupo.");
   }
 }
-
-
-
-// --- Listeners de Eventos Globales (Teclado y Clics Externos) ---
-document.addEventListener("click", event => {
-  // Cierre por clic fuera en Modal Contactos
-  const contactModal = document.getElementById("contactModal");
-  if (contactModal && event.target === contactModal) closeModal();
-
-  // Cierre por clic fuera en Modal Grupos
-  const groupModal = document.getElementById("groupModal");
-  if (groupModal && event.target === groupModal) closeGroupModal();
-});
-
-document.addEventListener("keydown", event => {
-  if (event.key === "Escape") {
-    closeModal();
-    closeGroupModal();
-  }
-
-  const contactModal = document.getElementById("contactModal");
-  const active = document.activeElement;
-
-  if (event.key === "Enter" && contactModal?.classList.contains("on") && ["cName","cNum","cPubKey"].includes(active?.id)) {
-    event.preventDefault();
-    saveContact();
-  }
-});
 </script>
-
-
 </body>
 </html>

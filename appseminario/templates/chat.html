@@ -21,43 +21,55 @@
 
 <main class="wrap">
     <div id="chatScreen" class="screen on">
-        <!-- Encabezado del Chat -->
+        <!-- Encabezado del Chat Corregido -->
         <header class="chat-header">
             <button class="back" onclick="goBack()" title="Volver" aria-label="Atrás">←</button>
             
-            <div class="av" id="chAv">
-                {% if display_name %}{{ display_name|first|upper }}{% else %}U{% endif %}
+            <!-- 👤 CAMBIO 1: El avatar cambia de color/icono si es un grupo, y arreglamos el error de sintaxis -->
+            <div class="av" id="chAv" style="{% if is_group %}background-color: #00ff88; color: #000;{% endif %}">
+                {% if is_group %}👥{% elif display_name %}{{ display_name|first|upper }}{% else %}U{% endif %}
             </div>
             
             <div class="chat-info">
                 <div class="chname" id="chName">{{ display_name }}</div>
-                <div class="chsub" id="chSub">En línea</div>
+                <!-- 👤 CAMBIO 2: La leyenda "En línea" SOLO aparece si NO es un grupo -->
+                <div class="chsub" id="chSub">{% if not is_group %}En línea{% endif %}</div>
             </div>
             
+            <!-- 👤 CAMBIO 3: Ocultar los botones de llamada si es un entorno grupal -->
+            {% if not is_group %}
             <div class="headbtns">
-            <button class="chat-call-btn voice" onclick="startCall('audio')" title="Llamada de voz" aria-label="Llamada de voz">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M6.6 10.8c1.4 2.8 3.8 5.2 6.6 6.6l2.2-2.2c.28-.28.68-.36 1.02-.24 1.1.36 2.28.56 3.48.56.55 0 1 .45 1 1V20c0 .55-.45 1-1 1C10.4 21 3 13.6 3 4.5c0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.2.2 2.38.56 3.48.12.34.04.74-.24 1.02z"/>
-                </svg>
-            </button>
+                <button class="chat-call-btn voice" onclick="startCall('audio')" title="Llamada de voz" aria-label="Llamada de voz">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6.6 10.8c1.4 2.8 3.8 5.2 6.6 6.6l2.2-2.2c.28-.28.68-.36 1.02-.24 1.1.36 2.28.56 3.48.56.55 0 1 .45 1 1V20c0 .55-.45 1-1 1C10.4 21 3 13.6 3 4.5c0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.2.2 2.38.56 3.48.12.34.04.74-.24 1.02z"/>
+                    </svg>
+                </button>
 
-            <button class="chat-call-btn video" onclick="startCall('video')" title="Videollamada" aria-label="Videollamada">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="2" y="6" width="13" height="12" rx="2.5"/>
-                    <path d="M17 10l4.1-2.35c.5-.29 1.12.07 1.12.65v7.4c0 .58-.62.94-1.12.65L17 14z"/>
-                </svg>
-            </button>
+                <button class="chat-call-btn video" onclick="startCall('video')" title="Videollamada" aria-label="Videollamada">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="2" y="6" width="13" height="12" rx="2.5"/>
+                        <path d="M17 10l4.1-2.35c.5-.29 1.12.07 1.12.65v7.4c0 .58-.62.94-1.12.65L17 14z"/>
+                    </svg>
+                </button>
             </div>
+            {% endif %}
         </header>
 
         <!-- Historial de Conversación -->
         <div id="chat" class="chat-body">
             {% for message in messages %}
                 <div data-id="{{ message.id }}" class="msg {% if message.sender == request.user %}my{% endif %}">
+                    
+                    <!-- 👤 CAMBIO 4: Si es grupo y el mensaje no es mío, mostrar el nombre del remitente -->
+                    {% if is_group and message.sender != request.user %}
+                        <div class="msg-sender" style="font-size: 11px; color: #00ff88; font-weight: bold; margin-bottom: 4px;">
+                            {{ message.sender.username }}
+                        </div>
+                    {% endif %}
+
                     {% if message.msg_type == 'audio' %}
                         <audio controls preload="auto" src="{{ message.audio_file.url }}"></audio>
                     {% else %}
-                        <!-- El contenido cifrado inicial se renderiza temporalmente en un span para ser descifrado por JS -->
                         <span class="encrypted-content">{{ message.content }}</span>
                     {% endif %}
                 </div>
@@ -66,9 +78,9 @@
 
         <!-- Barra inferior de entrada -->
         <div id="bar" class="bar">
-            <input id="txt" placeholder="Mensaje cifrado…" oninput="toggleBarBtns()" onkeydown="if(event.key==='Enter')send()">
+            <!-- 👤 CAMBIO 5: Modificar placeholder del input según el tipo de chat -->
+            <input id="txt" placeholder="{% if is_group %}Mensaje grupal…{% else %}Mensaje cifrado…{% endif %}" oninput="toggleBarBtns()" onkeydown="if(event.key==='Enter')send()">
             
-            <!-- Botón de Micrófono -->
             <button id="micBtn" class="action-btn" onclick="toggleRec()" title="Mensaje de voz" aria-label="Mensaje de voz">
                 <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
                     <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z"/>
@@ -76,42 +88,43 @@
                 </svg>
             </button>
             
-            <!-- Botón de Enviar (Oculto por defecto) -->
             <button id="sendBtn" class="action-btn send-btn" onclick="send()" style="display: none;">➤</button>
         </div>
     </div>
 </main>
 
-<!-- Modal de Llamadas -->
+{% if not is_group %}
+<!-- Modal de Llamadas (Deshabilitado por completo en grupos) -->
 <div id="callModal" class="modal call-modal">
     <div class="card call-card">
         <h2 id="callTitle">Llamando...</h2>
         <p id="callStatus" class="tag">Estableciendo conexión...</p>
-
         <video id="localVideo" autoplay playsinline muted class="call-video" style="display: none;"></video>
-
         <div class="mrow" style="justify-content: center; margin-top: 16px;">
             <button class="btn btn-danger" onclick="endCall()">Finalizar</button>
         </div>
     </div>
 </div>
+{% endif %}
 
 <script>
 let recorder = null;
 let isRecording = false;
 let callStream = null;
 
-// Clave pública del destinatario inyectada desde Django
+// Control flag del lado de JS
+const IS_GROUP = {{ is_group|yesno:"true,false" }};
 const RECIPIENT_PUBKEY_BASE64 = "{{ recipient_public_key|default:'' }}";
 
 document.addEventListener('DOMContentLoaded', async function() {
     // Inicializar Libsodium
     await sodium.ready;
 
+    // 👤 CONFIGURADO: Lee de forma segura los parámetros enviados desde newchat sin pisar grupos
     const urlParams = new URLSearchParams(window.location.search);
     const contactName = urlParams.get('name');
-    
-    if (contactName) {
+
+    if (contactName && !IS_GROUP) {
         document.getElementById('chName').textContent = contactName;
         document.getElementById('chAv').textContent = contactName.charAt(0).toUpperCase();
     }
@@ -148,9 +161,14 @@ function toggleBarBtns() {
 }
 
 /**
- * Cifra un texto utilizando Libsodium (crypto_box_easy)
+ * Cifra un texto utilizando Libsodium
  */
 function encryptText(plainText) {
+    if (IS_GROUP) {
+        console.warn("Cifrado asimétrico individual omitido por flujo de grupo.");
+        return plainText; 
+    }
+
     if (!RECIPIENT_PUBKEY_BASE64) {
         console.warn("No hay clave pública del receptor. El mensaje se enviará sin cifrar.");
         return plainText;
@@ -175,11 +193,15 @@ function encryptText(plainText) {
 }
 
 /**
- * Descifra un mensaje cifrado con el formato nonce:ciphertext
+ * Descifra un mensaje
  */
 function decryptText(encryptedPayload) {
+    if (IS_GROUP) {
+        return encryptedPayload; 
+    }
+
     if (!encryptedPayload.includes(':')) {
-        return encryptedPayload; // Retorna directo si es texto plano legacy
+        return encryptedPayload; 
     }
 
     try {
@@ -201,181 +223,14 @@ function decryptText(encryptedPayload) {
     }
 }
 
+/**
+ * Recorre e inicializa el descifrado del historial de chat en el DOM
+ */
 function decryptHistory() {
-    const encryptedElements = document.querySelectorAll('.encrypted-content');
-    encryptedElements.forEach(el => {
-        const rawText = el.textContent.trim();
-        el.textContent = decryptText(rawText);
+    document.querySelectorAll('.encrypted-content').forEach(span => {
+        const rawContent = span.textContent.trim();
+        span.textContent = decryptText(rawContent);
     });
-}
-
-async function send() {
-    const txtInput = document.getElementById('txt');
-    const message = txtInput.value.trim();
-
-    if (message) {
-        const encryptedContent = encryptText(message);
-
-        const formData = new FormData();
-        formData.append('conversation_id', '{{ conversation.id }}');
-        formData.append('msg_type', 'text');
-        formData.append('content', encryptedContent);
-
-        try {
-            const response = await fetch("{% url 'send_message_api' %}", {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token }}'
-                }
-            });
-
-            const data = await response.json();
-            if (data.status === 'success') {
-                appendMessage('text', message, data.message_id);
-                txtInput.value = '';
-                toggleBarBtns();
-            } else {
-                alert('Error al guardar el mensaje en el servidor');
-            }
-        } catch (err) {
-            console.error('Error de red:', err);
-        }
-    }
-}
-
-async function toggleRec() {
-    const micBtn = document.getElementById('micBtn');
-
-    if (!isRecording) {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-            recorder = new RecordRTC(stream, {
-                type: 'audio',
-                mimeType: 'audio/wav',
-                recorderType: RecordRTC.StereoAudioRecorder,
-                desiredSampRate: 16000
-            });
-
-            recorder.startRecording();
-            isRecording = true;
-            micBtn.style.color = 'var(--red, #ff4d4d)';
-
-        } catch (err) {
-            console.error("Error al acceder al micrófono:", err);
-            alert("No se pudo acceder al micrófono.");
-        }
-    } else {
-        recorder.stopRecording(async () => {
-            const audioBlob = recorder.getBlob();
-
-            const stream = recorder.getInternalRecorder().stream;
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
-
-            const formData = new FormData();
-            formData.append('conversation_id', '{{ conversation.id }}');
-            formData.append('msg_type', 'audio');
-            formData.append('audio_file', audioBlob, 'audio_message.wav');
-
-            try {
-                const response = await fetch("{% url 'send_message_api' %}", {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-CSRFToken': '{{ csrf_token }}'
-                    }
-                });
-
-                const data = await response.json();
-                if (data.status === 'success') {
-                    appendMessage('audio', data.audio_url, data.message_id);
-                } else {
-                    alert('Error al guardar la nota de voz en el servidor');
-                }
-            } catch (err) {
-                console.error('Error de red:', err);
-            }
-
-            isRecording = false;
-            micBtn.style.color = 'inherit';
-        });
-    }
-}
-
-async function startCall(type) {
-    const modal = document.getElementById('callModal');
-    const title = document.getElementById('callTitle');
-    const status = document.getElementById('callStatus');
-    const videoElem = document.getElementById('localVideo');
-
-    const recipientName = document.getElementById('chName').textContent || 'Usuario';
-    const isVideo = (type === 'video');
-
-    title.textContent = isVideo ? `Videollamada con ${recipientName}` : `Llamada con ${recipientName}`;
-    status.textContent = "Conectando...";
-    modal.classList.add('on');
-
-    try {
-        callStream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-            video: isVideo
-        });
-
-        if (isVideo) {
-            videoElem.srcObject = callStream;
-            videoElem.style.display = 'block';
-        } else {
-            videoElem.style.display = 'none';
-        }
-
-        status.textContent = "En llamada";
-
-    } catch (err) {
-        console.error("Error al iniciar la llamada:", err);
-        alert("No se pudo acceder a la cámara o al micrófono.");
-        endCall();
-    }
-}
-
-function endCall() {
-    const modal = document.getElementById('callModal');
-    const videoElem = document.getElementById('localVideo');
-
-    if (callStream) {
-        callStream.getTracks().forEach(track => track.stop());
-        callStream = null;
-    }
-
-    videoElem.srcObject = null;
-    modal.classList.remove('on');
-}
-
-function appendMessage(type, contentUrlOrText, msgId = null) {
-    const chat = document.getElementById('chat');
-    const msgDiv = document.createElement('div');
-
-    msgDiv.className = 'msg my';
-
-    if (type === 'text') {
-        msgDiv.textContent = contentUrlOrText;
-    } else if (type === 'audio') {
-        const audioEl = document.createElement('audio');
-        audioEl.controls = true;
-        audioEl.preload = 'auto';
-        audioEl.src = contentUrlOrText;
-
-        msgDiv.appendChild(audioEl);
-    }
-
-    if (msgId) {
-        msgDiv.setAttribute('data-id', msgId);
-    }
-
-    chat.appendChild(msgDiv);
-    chat.scrollTop = chat.scrollHeight;
 }
 </script>
 </body>

@@ -44,20 +44,22 @@
         <!-- Lista de Contactos y Grupos -->
         <div id="list">
             {% for contact in contacts %}
-                <div class="row contact-card" id="chat-item-{{ contact.id }}" onclick="openChat('{{ contact.phone_number }}', '{{ contact.is_group }}', '{{ contact.room_id }}')">
-                    <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
-                        <!-- Avatar adaptativo (Icono para grupos, inicial para contactos) -->
-                        <div class="av" {% if contact.is_group %}style="background-color: #00ff88; color: #000;"{% endif %}>
-                            {% if contact.is_group %}👥{% else %}{{ contact.name|slice:":1"|upper }}{% endif %}
-                        </div>
+            <!-- POR ESTA OTRA EXACTAMENTE: -->
+            <div class="row contact-card" id="chat-item-{{ contact.id }}" onclick="openChat('{{ contact.phone_number }}',
+            '{{ contact.is_group }}', '{{ contact.room_id }}', '{{ contact.name|escapejs }}')">
+                <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                    <!-- Avatar adaptativo (Icono para grupos, inicial para contactos) -->
+                    <div class="av" {% if contact.is_group %}style="background-color: #00ff88; color: #000;"{% endif %}>
+                        {% if contact.is_group %}👥{% else %}{{ contact.name|slice:":1"|upper }}{% endif %}
+                    </div>
                         
-                        <!-- Información del elemento -->
-                        <div class="rmid">
-                            <div class="rname contact-name">{{ contact.name }}</div>
-                            <div class="rprev contact-phone">{{ contact.phone_number }}</div>
-                        </div>
+                    <!-- Información del elemento -->
+                    <div class="rmid">
+                        <div class="rname contact-name">{{ contact.name }}</div>
+                        <div class="rprev contact-phone">{{ contact.phone_number }}</div>
                     </div>
                 </div>
+            </div>
             {% empty %}
                 <div class="empty" id="empty-msg">No hay contactos guardados.</div>
             {% endfor %}
@@ -160,15 +162,16 @@ function enviarClavePublicaAlServidor(pubKeyBase64) {
 
 window.addEventListener('DOMContentLoaded', initCrypto);
 
-// --- Funciones de Interfaz ---
-function openChat(phone, isGroup, roomId) {
-    // Si es un grupo, redirige directo usando la sala. Si es contacto, usa el parámetro to
+// REEMPLAZÁ ESTA FUNCIÓN COMPLETA EN TU SCRIPT:
+function openChat(phone, isGroup, roomId, name) {
+    // Si es un grupo, redirige directo usando la sala. Si es contacto, usa el parámetro to y arrastra el name
     if (isGroup === "True" && roomId) {
         window.location.href = `/chat/${roomId}/`;
     } else if (phone) {
-        window.location.href = `/chat/?to=${phone}`;
+        window.location.href = `/chat/?to=${encodeURIComponent(phone)}&name=${encodeURIComponent(name || '')}`;
     }
 }
+
 
 function openNewChat() { 
     window.location.href = "{% url 'newchat' %}"; 
