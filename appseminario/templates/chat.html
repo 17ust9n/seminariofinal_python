@@ -36,8 +36,6 @@
                 <div class="chsub" id="chSub">{% if not is_group %}En línea{% endif %}</div>
             </div>
             
-            <!-- 👤 CAMBIO 3: Ocultar los botones de llamada si es un entorno grupal -->
-            {% if not is_group %}
             <div class="headbtns">
                 <button class="chat-call-btn voice" onclick="startCall('audio')" title="Llamada de voz" aria-label="Llamada de voz">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -52,7 +50,6 @@
                     </svg>
                 </button>
             </div>
-            {% endif %}
         </header>
 
         <!-- Historial de Conversación -->
