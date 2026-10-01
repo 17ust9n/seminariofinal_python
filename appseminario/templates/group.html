@@ -18,6 +18,7 @@
                 <h2>Información del Grupo</h2>
             </div>
 
+            <!-- Información centralizada del Grupo -->
             <div style="text-align: center; padding: 20px;">
                 <div class="av" style="width: 80px; height: 80px; font-size: 36px; margin: 0 auto 10px auto; background-color: #00ff88; color: #000; display: flex; align-items: center; justify-content: center; border-radius: 50%;">👥</div>
                 <h1 style="color: #fff; margin: 10px 0 5px 0;">{{ group.name|default:"Grupo sin nombre" }}</h1>
@@ -29,22 +30,26 @@
             
             <div id="list">
                 {% for member in members %}
-                <div class="row" style="display: flex; align-items: center; gap: 12px; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05);">
-                    <!-- Inicial del nombre, del número, o "V" si sos vos -->
+                <!-- 🛠️ REDIRECCIÓN DINÁMICA: Lleva a perfil si sos Vos, u abre un chat privado si es otro miembro -->
+                <div class="row" 
+                     style="display: flex; align-items: center; gap: 12px; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer;"
+                     onclick="{% if member.is_current_user %}window.location.href='{% url 'profile' %}'{% else %}openChat('{{ member.username|escapejs }}', '{{ member.contact_name|default:''|escapejs }}'){% endif %}">
+                    
+                    <!-- Inicial del avatar o "V" si sos vos -->
                     <div class="av" style="width: 36px; height: 36px; min-width: 36px; font-size: 14px; background-color: #555; color: #fff; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
                         {% if member.is_current_user %}V{% else %}{{ member.contact_name|default:member.username|slice:":1"|upper }}{% endif %}
                     </div>
                     
+                    <!-- Bloque del contenido del contacto -->
                     <div class="rmid" style="display: flex; flex-direction: column; gap: 2px;">
-                        <!-- Número de teléfono arriba -->
+                        <!-- Número de teléfono principal -->
                         <div class="rname" style="color: #fff; font-weight: 500;">{{ member.username }}</div>
                         
-                        <!-- Nombre de la agenda abajo -->
+                        <!-- Nombre guardado en la agenda abajo -->
                         <div class="rprev" style="color: #888; font-size: 13px; display: flex; align-items: center; gap: 6px;">
                             {% if member.contact_name %}
                                 <span>{{ member.contact_name }}</span>
                             {% elif not member.is_current_user %}
-                                <!-- Solo muestra "Número no agendado" si NO es tu propio usuario -->
                                 <span style="font-style: italic; color: #555;">Número no agendado</span>
                             {% endif %}
                             
@@ -56,8 +61,16 @@
                 </div>
                 {% endfor %}
             </div>
-
         </div>
     </div>
+
+    <!-- Funciones de navegación e interfaz -->
+    <script>
+        function openChat(phone, name) {
+            if (phone) {
+                window.location.href = "{% url 'chat' %}?to=" + encodeURIComponent(phone) + "&name=" + encodeURIComponent(name || '');
+            }
+        }
+    </script>
 </body>
 </html>

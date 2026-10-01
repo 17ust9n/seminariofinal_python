@@ -21,15 +21,17 @@
 
 <main class="wrap">
     <div id="chatScreen" class="screen on">
-        <!-- Encabezado del Chat Corregido -->
-                <!-- Encabezado del Chat Completo con Link a Info de Grupo -->
+        
+        <!-- HEADER UNIFICADO Y CORREGIDO -->
         <header class="chat-header">
-            <button class="back" onclick="goBack()" title="Volver" aria-label="Atrás">←</button>
             
+            <!-- El botón con la redirección exacta a home -->
+            <button class="back" onclick="window.location.href='{% url 'home' %}'" title="Volver" aria-label="Atrás">←</button>
+    
             {% if is_group %}
             <!-- 👥 ÁREA CLICKEABLE EXCLUSIVA PARA GRUPOS: Redirige al template group -->
             <div class="header-click-area" onclick="window.location.href='{% url 'group_detail' conversation.id %}'" style="display: flex; align-items: center; gap: 12px; flex: 1; cursor: pointer;" title="Ver información del grupo">
-                <div class="av" id="chAv" style="background-color: #00ff88; color: #000; min-width: 40px;">👥</div>
+                <div class="av" id="chAv" style="background-color: #00ff88; color: #000;">👥</div>
                 <div class="chat-info">
                     <div class="chname" id="chName">{{ display_name }}</div>
                     <div class="chsub" id="chSub"></div>
@@ -52,7 +54,7 @@
             <div class="headbtns">
                 <button class="chat-call-btn voice" onclick="startCall('audio')" title="Llamada de voz" aria-label="Llamada de voz">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M6.6 10.8c1.4 2.8 3.8 5.2 6.6 6.6l2.2-2.2c.28-.28.68-.36 1.02-.24 1.1.36 2.28.56 3.48.56.55 0 1 .45 1 1V20c0 .55-.45 1-1 1C10.4 21 3 13.6 3 4.5c0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.2.2 2.38.56 3.48.12.34.04.74-.24 1.02z"/>
+                        <path d="M6.6 10.8c1.4 2.8 3.8 5.2 6.6 6.6l2.2-2.2c.28-.28.68-.36 1.02-.24 1.1.36 2.28.56 3.48.56.55 0 1 .45 1 1V20c0 .55-.45 1-1 1C10.4 21 3 13.6 3 4.5c0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.2.2 2.38.56 3.48.12.34.04.74-.24 1.02z"/>
                     </svg>
                 </button>
 
@@ -64,7 +66,6 @@
                 </button>
             </div>
         </header>
-
 
         <!-- Historial de Conversación -->
         <div id="chat" class="chat-body">
