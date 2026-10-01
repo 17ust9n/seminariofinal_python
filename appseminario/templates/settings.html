@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Starssenger - Ajustes y Seguridad{% endblock %}</title>
+    <title>{% block title %}Starssenger - Preferencias Globales{% endblock %}</title>
 
     <!-- CSS principal -->
     <link rel="stylesheet" href="{% static 'estilos.css' %}?v=125">
@@ -22,86 +22,118 @@
         <!-- Encabezado / Toolbar de la App -->
         <div class="toolbar">
             <a href="{% url 'profile' %}" class="btn-back">←</a>
-            <span class="toolbar-title">Ajustes y Seguridad</span>
+            <span class="toolbar-title">Ajustes de la App</span>
         </div>
 
         <!-- Contenido Centralizado y Confinado Horizontalmente -->
         <div class="container">
-            <!-- Nivel de Seguridad -->
-            <div class="setting-row">
-                <div class="setting-info">
-                    <h3>Modo Blindado 🛡️</h3>
-                    <p>Aumenta el cifrado de las sesiones</p>
+            
+            <!-- NUEVA CONFIGURACIÓN 1: Limpieza Efímera en el cliente (LocalStorage) -->
+            <div class="setting-row" style="display: flex; align-items: center; justify-content: space-between; padding: 15px 0;">
+                <div class="setting-info" style="flex: 1; padding-right: 15px;">
+                    <h3 style="margin: 0; font-size: 16px; color: #fff;">Sesión Efímera ⏳</h3>
+                    <p style="margin: 4px 0 0 0; font-size: 13px; color: #888;">Borrar llaves locales al cerrar el navegador</p>
                 </div>
                 <label class="switch">
-                    <input type="checkbox" id="switchSecurityLevel" {% if security_level == 1 %}checked{% endif %}>
+                    <input type="checkbox" id="switchEphemeralSession">
                     <span class="slider"></span>
                 </label>
             </div>
 
-            <div class="divider"></div>
+            <div class="divider" style="height: 1px; background: rgba(255,255,255,0.08); margin: 10px 0;"></div>
 
-            <!-- Clave Pública Criptográfica -->
-            <div class="key-title">Clave Pública Curve25519</div>
-            <div class="key-display" id="tvFullPublicKey">{{ pub_key }}</div>
+            <!-- NUEVA CONFIGURACIÓN 2: Confirmación de Lectura -->
+            <div class="setting-row" style="display: flex; align-items: center; justify-content: space-between; padding: 15px 0;">
+                <div class="setting-info" style="flex: 1; padding-right: 15px;">
+                    <h3 style="margin: 0; font-size: 16px; color: #fff;">Confirmación de Lectura ✔️✔️</h3>
+                    <p style="margin: 4px 0 0 0; font-size: 13px; color: #888;">Permitir que otros vean si leíste sus mensajes</p>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="switchReadReceipts" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
 
-            <button class="btn-outlined" id="btnCopyKey">Copiar Clave Completa</button>
+            <div class="divider" style="height: 1px; background: rgba(255,255,255,0.08); margin: 10px 0;"></div>
+
+            <!-- NUEVA CONFIGURACIÓN 3: Alertas Sonoras -->
+            <div class="setting-row" style="display: flex; align-items: center; justify-content: space-between; padding: 15px 0;">
+                <div class="setting-info" style="flex: 1; padding-right: 15px;">
+                    <h3>Efectos de Sonido 🔊</h3>
+                    <p style="margin: 4px 0 0 0; font-size: 13px; color: #888;">Reproducir sonidos al enviar y recibir mensajes</p>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="switchAppSounds" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="divider" style="height: 1px; background: rgba(255,255,255,0.08); margin: 20px 0;"></div>
+
+            <!-- Botón de acción global del cliente -->
+            <button class="btn-outlined" id="btnResetPreferences" style="width: 100%; border: 1px solid #ff4a4a; color: #ff4a4a; background: transparent; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                Restablecer Preferencias de la App
+            </button>
         </div>
 
-        <!-- Contenedor Toast integrado al área táctil del celular -->
-        <div id="toast" class="toast">Clave pública copiada 📋</div>
+        <!-- Contenedor Toast integrado -->
+        <div id="toast" class="toast">Preferencia guardada localmente ⚙️</div>
 
     </div>
 </div>
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const switchSecurity = document.getElementById('switchSecurityLevel');
-        const btnCopyKey = document.getElementById('btnCopyKey');
-        const tvFullPublicKey = document.getElementById('tvFullPublicKey');
+        const switchEphemeral = document.getElementById('switchEphemeralSession');
+        const switchRead = document.getElementById('switchReadReceipts');
+        const switchSounds = document.getElementById('switchAppSounds');
+        const btnReset = document.getElementById('btnResetPreferences');
         const toast = document.getElementById('toast');
 
-        // 1. Guardar cambio de nivel de seguridad
-        switchSecurity.addEventListener('change', async (e) => {
-            const isChecked = e.target.checked;
-            const level = isChecked ? 1 : 0;
+        // Cargar preferencias iniciales guardadas en el LocalStorage del cliente
+        switchEphemeral.checked = localStorage.getItem('app_ephemeral_session') === 'true';
+        switchRead.checked = localStorage.getItem('app_read_receipts') !== 'false'; // true por defecto
+        switchSounds.checked = localStorage.getItem('app_sounds') !== 'false'; // true por defecto
 
-            try {
-                const response = await fetch("{% url 'update_security_level_api' %}", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ security_level: level })
-                });
-                
-                const result = await response.json();
-                if (result.status !== 'success') {
-                    console.error('Error al guardar ajuste:', result.message);
-                }
-            } catch (error) {
-                console.error('Error de red:', error);
-            }
-        });
-
-        // 2. Copiar clave pública al portapapeles
-        btnCopyKey.addEventListener('click', () => {
-            const keyText = tvFullPublicKey.innerText.trim();
-            if (keyText && keyText !== 'No generada') {
-                navigator.clipboard.writeText(keyText).then(() => {
-                    showToast();
-                }).catch(err => {
-                    console.error('Error al copiar: ', err);
-                });
-            }
-        });
-
-        function showToast() {
+        // Función auxiliar para mostrar el aviso visual de guardado
+        function showToast(message) {
+            if(message) toast.textContent = message;
             toast.classList.add("show");
             setTimeout(() => { 
                 toast.classList.remove("show"); 
-            }, 3000);
+            }, 2000);
         }
+
+        // Eventos para guardar inmediatamente en el LocalStorage
+        switchEphemeral.addEventListener('change', (e) => {
+            localStorage.setItem('app_ephemeral_session', e.target.checked);
+            showToast("Preferencia de sesión actualizada ⏳");
+        });
+
+        switchRead.addEventListener('change', (e) => {
+            localStorage.setItem('app_read_receipts', e.target.checked);
+            showToast("Confirmación de lectura modificada ✔️");
+        });
+
+        switchSounds.addEventListener('change', (e) => {
+            localStorage.setItem('app_sounds', e.target.checked);
+            showToast("Configuración de audio guardada 🔊");
+        });
+
+        // Botón de restablecimiento de fábrica para la interfaz local
+        btnReset.addEventListener('click', () => {
+            if (confirm("¿Querés restaurar los ajustes por defecto de la aplicación?")) {
+                localStorage.setItem('app_ephemeral_session', 'false');
+                localStorage.setItem('app_read_receipts', 'true');
+                localStorage.setItem('app_sounds', 'true');
+                
+                switchEphemeral.checked = false;
+                switchRead.checked = true;
+                switchSounds.checked = true;
+                
+                showToast("Ajustes restaurados por defecto 🔄");
+            }
+        });
     });
 </script>
 </body>

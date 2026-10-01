@@ -1,0 +1,63 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starssenger - Info del Grupo</title>
+    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=125">
+</head>
+<body>
+    <div class="wrap">
+        <div class="newchat">
+            <!-- Encabezado de la info de grupo -->
+            <div class="newchat-header">
+                <button class="back-newchat" onclick="window.history.back()" title="Volver">
+                    <span>←</span>
+                </button>
+                <h2>Información del Grupo</h2>
+            </div>
+
+            <div style="text-align: center; padding: 20px;">
+                <div class="av" style="width: 80px; height: 80px; font-size: 36px; margin: 0 auto 10px auto; background-color: #00ff88; color: #000; display: flex; align-items: center; justify-content: center; border-radius: 50%;">👥</div>
+                <h1 style="color: #fff; margin: 10px 0 5px 0;">{{ group.name|default:"Grupo sin nombre" }}</h1>
+                <p style="color: #888; font-size: 14px;">Sala de chat grupal #{{ group.id }}</p>
+            </div>
+
+            <!-- Listado de Integrantes -->
+            <div style="padding: 15px 5px 5px 5px; font-size: 12px; color: #00ff88; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Miembros del grupo</div>
+            
+            <div id="list">
+                {% for member in members %}
+                <div class="row" style="display: flex; align-items: center; gap: 12px; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <!-- Inicial del nombre, del número, o "V" si sos vos -->
+                    <div class="av" style="width: 36px; height: 36px; min-width: 36px; font-size: 14px; background-color: #555; color: #fff; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
+                        {% if member.is_current_user %}V{% else %}{{ member.contact_name|default:member.username|slice:":1"|upper }}{% endif %}
+                    </div>
+                    
+                    <div class="rmid" style="display: flex; flex-direction: column; gap: 2px;">
+                        <!-- Número de teléfono arriba -->
+                        <div class="rname" style="color: #fff; font-weight: 500;">{{ member.username }}</div>
+                        
+                        <!-- Nombre de la agenda abajo -->
+                        <div class="rprev" style="color: #888; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                            {% if member.contact_name %}
+                                <span>{{ member.contact_name }}</span>
+                            {% elif not member.is_current_user %}
+                                <!-- Solo muestra "Número no agendado" si NO es tu propio usuario -->
+                                <span style="font-style: italic; color: #555;">Número no agendado</span>
+                            {% endif %}
+                            
+                            {% if member.is_current_user %}
+                                <span style="color: #00ff88; font-size: 11px; background: rgba(0, 255, 136, 0.1); padding: 1px 5px; border-radius: 4px; font-weight: bold;">Vos</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>

@@ -318,6 +318,46 @@ def delete_group_api(request, group_id):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
+def group_detail_view(request, group_id):
+    """
+    Muestra la información de un grupo específico, sus miembros con nombres de la agenda y opciones de edición.
+    """
+    if request.user.is_authenticated:
+        current_user = request.user
+        # Creamos un mapa/diccionario rápido: { 'telefono': 'Nombre Guardado' }
+        # Ajustá 'user' o 'phone_number' si tus campos se llaman distinto en el modelo Contact
+        agenda_contactos = {
+            c.phone_number: c.name 
+            for c in Contact.objects.filter(user=current_user)
+        }
+    else:
+        current_user = User.objects.get_or_create(username="invitado")[0]
+        agenda_contactos = {}
+
+    # Obtenemos la conversación asegurándonos de que sea un grupo
+    group_conversation = get_object_or_404(Conversation, id=group_id, is_group=True)
+    
+    # Obtenemos la lista de todos los participantes del grupo
+    participants = group_conversation.participants.all()
+    
+    # Construimos una lista de miembros enriquecida con el nombre de la agenda
+    members_with_names = []
+    for member in participants:
+        # Buscamos el nombre en la agenda usando el username (que es el número)
+        nombre_agenda = agenda_contactos.get(member.username)
+        
+        members_with_names.append({
+            'username': member.username,
+            'contact_name': nombre_agenda,
+            'is_current_user': member == current_user
+        })
+    
+    return render(request, 'group.html', {
+        'group': group_conversation,
+        'members': members_with_names,
+        'current_user': current_user
+    })
+
 
 @csrf_exempt
 @require_POST

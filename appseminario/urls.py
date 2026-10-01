@@ -35,6 +35,7 @@ urlpatterns = [
     path('api/create-group/', views.create_group_api, name='create_group_api'),
     path('api/edit-group/<int:group_id>/', views.edit_group_api, name='edit_group_api'),
     path('api/delete-group/<int:group_id>/', views.delete_group_api, name='delete_group_api'),
+    path('group/<int:group_id>/', views.group_detail_view, name='group_detail'),
     
     # 🔑 AGREGA ESTA LÍNEA CRÍTICA PARA SOLUCIONAR EL ERROR 404:
     path('actualizar-clave-publica/', views.actualizar_clave_publica_api, name='actualizar_clave_publica_api'),

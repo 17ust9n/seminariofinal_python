@@ -22,20 +22,33 @@
 <main class="wrap">
     <div id="chatScreen" class="screen on">
         <!-- Encabezado del Chat Corregido -->
+                <!-- Encabezado del Chat Completo con Link a Info de Grupo -->
         <header class="chat-header">
             <button class="back" onclick="goBack()" title="Volver" aria-label="Atrás">←</button>
             
-            <!-- 👤 CAMBIO 1: El avatar cambia de color/icono si es un grupo, y arreglamos el error de sintaxis -->
-            <div class="av" id="chAv" style="{% if is_group %}background-color: #00ff88; color: #000;{% endif %}">
-                {% if is_group %}👥{% elif display_name %}{{ display_name|first|upper }}{% else %}U{% endif %}
+            {% if is_group %}
+            <!-- 👥 ÁREA CLICKEABLE EXCLUSIVA PARA GRUPOS: Redirige al template group -->
+            <div class="header-click-area" onclick="window.location.href='{% url 'group_detail' conversation.id %}'" style="display: flex; align-items: center; gap: 12px; flex: 1; cursor: pointer;" title="Ver información del grupo">
+                <div class="av" id="chAv" style="background-color: #00ff88; color: #000; min-width: 40px;">👥</div>
+                <div class="chat-info">
+                    <div class="chname" id="chName">{{ display_name }}</div>
+                    <div class="chsub" id="chSub"></div>
+                </div>
             </div>
-            
-            <div class="chat-info">
-                <div class="chname" id="chName">{{ display_name }}</div>
-                <!-- 👤 CAMBIO 2: La leyenda "En línea" SOLO aparece si NO es un grupo -->
-                <div class="chsub" id="chSub">{% if not is_group %}En línea{% endif %}</div>
+            {% else %}
+            <!-- 👤 FLUJO NORMAL PARA CONTACTOS INDIVIDUALES: No es clickeable -->
+            <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                <div class="av" id="chAv">
+                    {% if display_name %}{{ display_name|first|upper }}{% else %}U{% endif %}
+                </div>
+                <div class="chat-info">
+                    <div class="chname" id="chName">{{ display_name }}</div>
+                    <div class="chsub" id="chSub">En línea</div>
+                </div>
             </div>
+            {% endif %}
             
+            <!-- Botones de llamadas unificados siempre visibles -->
             <div class="headbtns">
                 <button class="chat-call-btn voice" onclick="startCall('audio')" title="Llamada de voz" aria-label="Llamada de voz">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -51,6 +64,7 @@
                 </button>
             </div>
         </header>
+
 
         <!-- Historial de Conversación -->
         <div id="chat" class="chat-body">
