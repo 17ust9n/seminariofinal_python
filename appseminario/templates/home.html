@@ -56,7 +56,8 @@
                     <!-- Información del elemento -->
                     <div class="rmid">
                         <div class="rname contact-name">{{ contact.name }}</div>
-                        <div class="rprev contact-phone">{{ contact.phone_number }}</div>
+                        <div class="rprev contact-phone">
+                        {% if contact.is_group %}Sala de chat grupal{% else %}{{ contact.phone_number }}{% endif %}</div>
                     </div>
                 </div>
             </div>
