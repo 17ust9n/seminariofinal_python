@@ -59,7 +59,12 @@
     <div style="padding: 15px 5px 5px 5px; font-size: 12px; color: #888; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Contactos</div>
     {% for contact in contacts %}
     
-    <div class="row contact-item" id="contact-item-{{ contact.id }}" onclick="openChat('{{ contact.phone_number|escapejs }}', '{{ contact.name|escapejs }}')">
+    <!-- 🛠️ data-contact-id / data-name / data-phone: se usan para detectar duplicados en el navegador -->
+    <div class="row contact-item" id="contact-item-{{ contact.id }}"
+         data-contact-id="{{ contact.id }}"
+         data-name="{{ contact.name }}"
+         data-phone="{{ contact.phone_number }}"
+         onclick="openChat('{{ contact.phone_number|escapejs }}', '{{ contact.name|escapejs }}')">
       <div class="av">{{ contact.name|slice:":1"|upper }}</div>
       <div class="rmid">
         <div class="rname">{{ contact.name }}</div>
@@ -83,13 +88,16 @@
     <input type="hidden" id="cId">
 
     <label for="cName">Nombre</label>
-    <input id="cName" type="text" placeholder="Nombre completo">
+    <input id="cName" type="text" placeholder="Nombre completo" oninput="clearContactError()">
 
     <label for="cNum">Teléfono</label>
-    <input id="cNum" type="text" placeholder="Número de teléfono">
+    <input id="cNum" type="text" placeholder="Número de teléfono" oninput="clearContactError()">
 
     <label for="cPubKey">Clave Pública de Libsodium (Base64)</label>
     <input id="cPubKey" type="text" placeholder="Clave pública (opcional)">
+
+    <!-- Mensaje de error de validación (duplicados, campos vacíos) -->
+    <div id="contactErr" style="display: none; margin-top: 12px; color: #e05a5a; font-size: 13px; font-weight: bold;"></div>
 
     <div class="mrow modal-actions">
       <button type="button" onclick="closeModal()" class="btn ghost">Cancelar</button>
@@ -106,7 +114,9 @@
     <label for="gName">Nombre del Grupo</label>
     <input id="gName" type="text" placeholder="Ej: Amigos, Familia, Trabajo...">
 
-    <label style="margin-top: 15px; display: block; font-weight: bold;">Seleccionar Miembros</label>
+    <label id="createGroupLabel" style="margin-top: 15px; display: block; font-weight: bold;">
+      Seleccionar Miembros (<span id="createGroupCounter">0</span> seleccionados)
+    </label>
     
     <div id="groupContactsSelection" style="max-height: 200px; overflow-y: auto; margin-top: 10px; border: 1px solid rgba(255,255,255,0.1); padding: 5px; border-radius: 6px;">
       {% for contact in contacts %}
@@ -119,7 +129,12 @@
           </div>
         </label>
         <!-- 🛠️ CORRECCIÓN CRÍTICA: Se envía contact.contact.username para emparejar estrictamente con el User de Django -->
-        <input type="checkbox" id="chk-{{ contact.id }}" class="group-member-checkbox" value="{% if contact.contact %}{{ contact.contact.username }}{% else %}{{ contact.phone_number }}{% endif %}" style="width: 18px; height: 18px; cursor: pointer; accent-color: #00ff88;">
+        <input type="checkbox"
+               id="chk-{{ contact.id }}"
+               class="group-member-checkbox"
+               value="{% if contact.contact %}{{ contact.contact.username }}{% else %}{{ contact.phone_number }}{% endif %}"
+               onchange="updateCreateCounter()"
+               style="width: 18px; height: 18px; cursor: pointer; accent-color: #00ff88;">
       </div>
       {% empty %}
       <div class="empty" style="padding: 10px; font-size: 13px;">No tenés contactos guardados para añadir.</div>
@@ -143,7 +158,7 @@
     <label for="gEditName">Nuevo Nombre del Grupo</label>
     <input id="gEditName" type="text" placeholder="Ej: Nuevo nombre...">
 
-    <label style="margin-top: 15px; display: block; font-weight: bold;">
+    <label id="editGroupLabel" style="margin-top: 15px; display: block; font-weight: bold;">
       Miembros del Grupo (<span id="editGroupCounter">0</span> seleccionados)
     </label>
     
@@ -205,6 +220,55 @@ function importContacts(){
   alert("La importación de contactos no está disponible en este entorno.");
 }
 
+// --- Validación de contactos duplicados ---
+
+// Normaliza un nombre: minúsculas, sin tildes y sin espacios repetidos ("María  Pérez" == "maria perez")
+function normalizeName(s) {
+  return (s || "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Deja solo los dígitos de un teléfono ("+54 9 11-3092-0000" == "5491130920000")
+function normalizePhone(s) {
+  return (s || "").replace(/\D/g, "");
+}
+
+// Devuelve un mensaje de error si el nombre o el teléfono ya pertenecen a OTRO contacto.
+// currentId: id del contacto que se está editando ("" al crear uno nuevo).
+function findContactDuplicate(currentId, name, phone) {
+  const targetName = normalizeName(name);
+  const targetPhone = normalizePhone(phone);
+
+  const rows = document.querySelectorAll('[data-contact-id]');
+  for (const row of rows) {
+    if (currentId && row.dataset.contactId === String(currentId)) continue; // se excluye a sí mismo
+
+    if (targetPhone && normalizePhone(row.dataset.phone) === targetPhone) {
+      return "Ya existe un contacto con ese número de teléfono (" + row.dataset.name + ").";
+    }
+    if (targetName && normalizeName(row.dataset.name) === targetName) {
+      return "Ya existe un contacto con ese nombre.";
+    }
+  }
+  return null;
+}
+
+function showContactError(msg) {
+  const el = document.getElementById('contactErr');
+  el.textContent = msg;
+  el.style.display = "block";
+}
+
+function clearContactError() {
+  const el = document.getElementById('contactErr');
+  if (!el) return;
+  el.textContent = "";
+  el.style.display = "none";
+}
+
 // --- Controladores de Modales: Contactos ---
 function openAddModal() {
   document.getElementById('modalTitle').textContent = "Agregar Contacto";
@@ -212,6 +276,7 @@ function openAddModal() {
   document.getElementById('cName').value = "";
   document.getElementById('cNum').value = "";
   document.getElementById('cPubKey').value = "";
+  clearContactError();
   document.getElementById('contactModal').style.display = "flex";
 }
 
@@ -221,10 +286,12 @@ function openEditModal(id, name, phone, pubkey) {
   document.getElementById('cName').value = name;
   document.getElementById('cNum').value = phone;
   document.getElementById('cPubKey').value = pubkey;
+  clearContactError();
   document.getElementById('contactModal').style.display = "flex";
 }
 
 function closeModal() {
+  clearContactError();
   document.getElementById('contactModal').style.display = "none";
 }
 
@@ -232,11 +299,23 @@ function closeModal() {
 function openNewGroupModal() {
   document.getElementById('gName').value = "";
   document.querySelectorAll('#groupContactsSelection .group-member-checkbox').forEach(cb => cb.checked = false);
+  updateCreateCounter();
+  // Se limpia cualquier error en rojo de una apertura anterior
+  document.getElementById('createGroupLabel').style.color = "";
   document.getElementById('groupModal').style.display = "flex";
 }
 
 function closeGroupModal() {
   document.getElementById('groupModal').style.display = "none";
+}
+
+// Actualiza el contador del modal de creación de grupo
+function updateCreateCounter() {
+  const count = document.querySelectorAll('#groupContactsSelection .group-member-checkbox:checked').length;
+  const counterElement = document.getElementById('createGroupCounter');
+  if (counterElement) counterElement.textContent = count;
+  // Si había un error marcado en rojo, vuelve al color normal
+  if (count > 0) document.getElementById('createGroupLabel').style.color = "";
 }
 
 // --- 🛠️ CONTROLADOR CORREGIDO: Busca los miembros con la URL exacta de tu urls.py ---
@@ -270,6 +349,8 @@ async function openEditGroupPrompt(id, currentName) {
 
   // Sincronizamos el contador numérico visual antes de mostrar la pantalla modal
   updateEditCounter();
+  // Se limpia cualquier error en rojo de una apertura anterior
+  document.getElementById('editGroupLabel').style.color = "";
   document.getElementById('editGroupModal').style.display = "flex";
 }
 
@@ -279,25 +360,30 @@ function closeEditGroupModal() {
 
 // Actualiza el contador dinámico en base a los recuadros que están seleccionados
 function updateEditCounter() {
-  const checkedCount = document.querySelectorAll('.edit-group-member-checkbox:checked').length;
+  const count = document.querySelectorAll('.edit-group-member-checkbox:checked').length;
   const counterElement = document.getElementById('editGroupCounter');
-  if (counterElement) {
-    counterElement.textContent = checkedCount;
-  }
+  if (counterElement) counterElement.textContent = count;
+  // Si había un error marcado en rojo, vuelve al color normal
+  if (count > 0) document.getElementById('editGroupLabel').style.color = "";
 }
 
 // --- Operaciones CRUD Asíncronas ---
 
 async function saveContact(e) {
   e.preventDefault();
+  clearContactError();
   
   const id = document.getElementById('cId').value;
   const name = document.getElementById('cName').value.trim();
   const phone = document.getElementById('cNum').value.trim().replace(/\D/g, ''); 
   const publicKey = document.getElementById('cPubKey').value.trim();
 
-  if (!name) return alert("Por favor, ingresá el nombre del contacto.");
-  if (phone.length < 6) return alert("Ingresá un número de teléfono completo.");
+  if (!name) return showContactError("Por favor, ingresá el nombre del contacto.");
+  if (phone.length < 6) return showContactError("Ingresá un número de teléfono completo.");
+
+  // 🛠️ VALIDACIÓN: el nombre o el número no pueden pertenecer a otro contacto de la lista
+  const duplicateMsg = findContactDuplicate(id, name, phone);
+  if (duplicateMsg) return showContactError(duplicateMsg);
 
   const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
 
@@ -325,11 +411,12 @@ async function saveContact(e) {
       closeModal();
       window.location.reload(); 
     } else {
-      alert(data.message || "Error al procesar la solicitud en el servidor.");
+      // Si el servidor rechaza (por ejemplo, por duplicado), el error se muestra dentro del modal
+      showContactError(data.message || "Error al procesar la solicitud en el servidor.");
     }
   } catch (error) {
     console.error("Error en saveContact:", error);
-    alert("Ocurrió un error de red al intentar guardar el contacto.");
+    showContactError("Ocurrió un error de red al intentar guardar el contacto.");
   }
 }
 
@@ -342,6 +429,12 @@ async function saveGroup(e) {
   document.querySelectorAll('#groupContactsSelection .group-member-checkbox:checked').forEach(cb => {
     selectedMembers.push(cb.value);
   });
+
+  // 🛠️ VALIDACIÓN: no se puede crear un grupo sin miembros
+  if (selectedMembers.length === 0) {
+    document.getElementById('createGroupLabel').style.color = "#e05a5a";
+    return alert("Seleccioná al menos un miembro para el grupo.");
+  }
 
   const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
 
@@ -383,6 +476,12 @@ async function saveGroupEdit(e) {
   document.querySelectorAll('.edit-group-member-checkbox:checked').forEach(cb => {
     selectedMembers.push(cb.value);
   });
+
+  // 🛠️ VALIDACIÓN: no se puede guardar un grupo sin miembros
+  if (selectedMembers.length === 0) {
+    document.getElementById('editGroupLabel').style.color = "#e05a5a";
+    return alert("Seleccioná al menos un miembro para el grupo.");
+  }
   
   const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
 
