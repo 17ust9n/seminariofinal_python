@@ -26,10 +26,12 @@ urlpatterns = [
     path('api/delete-message/<int:message_id>/', views.delete_message_api, name='delete_message_api'),
     path('api/hide-chat/<int:room_id>/', views.hide_chat_from_home_api, name='hide_chat_from_home_api'),
     path('api/search-users/', views.search_users_api, name='search_users_api'),
+    
+    # 🛠️ RUTAS DE CONTACTOS UNIFICADAS: Alta y Edición asíncronas
+    path('api/save-contact/', views.save_contact_api, name='save_contact_api'),
     path('api/delete-contact/<int:contact_id>/', views.delete_contact_api, name='delete_contact_api'),
+    
     path('api/update-security-level/', views.update_security_level_api, name='update_security_level_api'),
-    
-    
 
     # --- API de Grupos ---
     path('api/create-group/', views.create_group_api, name='create_group_api'),
@@ -39,8 +41,6 @@ urlpatterns = [
     
     # 🔑 AGREGA ESTA LÍNEA CRÍTICA PARA SOLUCIONAR EL ERROR 404:
     path('actualizar-clave-publica/', views.actualizar_clave_publica_api, name='actualizar_clave_publica_api'),
-
-
 
     path('logout/', views.logout_view, name='logout'),
 ]

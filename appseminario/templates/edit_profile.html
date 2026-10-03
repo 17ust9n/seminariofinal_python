@@ -29,6 +29,10 @@
         <div class="prof">
             <div class="bigav" id="profAv">👤</div>
 
+            <!-- 🛠️ NUEVO: Campo para editar el Nombre / Alias -->
+            <label for="setName">Tu nombre / Alias</label>
+            <input id="setName" type="text" placeholder="Ej. Juan Pérez" autofocus>
+
             <label for="setNum">Tu número (con código de país)</label>
             <input id="setNum" inputmode="numeric">
             
@@ -64,8 +68,15 @@
 
   document.addEventListener('DOMContentLoaded', async function() {
     // 1. Unificar claves de localStorage usadas en Onboarding
+    const savedName = localStorage.getItem('sp_name') || '';
     const savedPhone = localStorage.getItem('sp_me') || '{{ request.user.username }}';
     const savedSecure = localStorage.getItem('sp_secure') || '0';
+
+    // 🛠️ NUEVO: Cargar el nombre guardado en el input correspondiente
+    const setName = document.getElementById('setName');
+    if (setName && savedName) {
+      setName.value = savedName;
+    }
 
     const setNum = document.getElementById('setNum');
     if (setNum && savedPhone) {
@@ -124,13 +135,24 @@
   }
 
   async function saveProfile() {
+    // 🛠️ NUEVO: Validación y persistencia del campo Nombre
+    const nameInput = document.getElementById('setName');
+    if (!nameInput || !nameInput.value.trim()) {
+      alert('Por favor, ingresa un nombre o alias válido.');
+      return;
+    }
+
     const phoneInput = document.getElementById('setNum');
     if (!phoneInput || !phoneInput.value.trim()) {
       alert('Por favor, ingresa un número de teléfono válido.');
       return;
     }
 
+    const newName = nameInput.value.trim();
     const newPhone = phoneInput.value.trim().replace(/\D/g, '');
+    
+    // Guardado local de datos actualizados
+    localStorage.setItem('sp_name', newName);
     localStorage.setItem('sp_me', newPhone);
     localStorage.setItem('sp_secure', currentSecureMode.toString());
 

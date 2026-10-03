@@ -1,4 +1,5 @@
 import json
+import traceback
 from django.db.models import Q
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
@@ -83,10 +84,10 @@ def home(request):
     groups = Conversation.objects.filter(is_group=True, participants=current_user)
     for g in groups:
         contacts_data.append({
-            'id': f"group-{g.id}", # ID seguro para el DOM
+            'id': f"group-{g.id}", 
             'is_group': True,
             'name': g.name or "Grupo sin nombre",
-            'phone_number': f"Sala {g.id}", # Texto auxiliar descriptivo
+            'phone_number': f"Sala {g.id}", 
             'room_id': g.id
         })
 
@@ -121,13 +122,10 @@ def chat_detail(request, room_id=None, username=None):
     elif other_participant:
         # 2. Si no vino por URL o está vacío, buscamos de forma inteligente en Contactos
         if not display_name or display_name == "Chat":
-            # Buscamos cualquier contacto de este usuario cuyo número coincida con el username del otro
             contact = Contact.objects.filter(user=current_user, phone_number=other_participant.username).first()
-            
             if contact and contact.name:
                 display_name = contact.name
             else:
-                # 3. Si no está agendado, mostramos su teléfono/nombre de usuario en vez de la palabra "Chat"
                 display_name = other_participant.username 
         
         # Recuperamos el perfil criptográfico
@@ -143,7 +141,6 @@ def chat_detail(request, room_id=None, username=None):
         'recipient_public_key': contacto_pub_key,  
         'is_group': conversation.is_group,
     })
-
 
 
 @csrf_exempt
@@ -166,7 +163,7 @@ def hide_chat_from_home_api(request, contact_id):
 def chat(request):
     """Redirige al chat resolviendo la conversación según el parámetro ?to=NUMERO."""
     phone = request.GET.get('to')
-    name = request.GET.get('name', '') # 👈 1. Capturamos el nombre que viene desde el frontend
+    name = request.GET.get('name', '') 
 
     if phone:
         target_user, _ = User.objects.get_or_create(username=phone)
@@ -183,8 +180,6 @@ def chat(request):
             conversation = Conversation.objects.create(is_group=False, created_by=current_user)
             conversation.participants.add(current_user, target_user)
 
-        # 👈 2. Modificamos el redireccionamiento para incluir el nombre en los parámetros GET
-        from django.urls import reverse
         url_destino = reverse('chat_detail', kwargs={'room_id': conversation.id})
         if name:
             url_destino += f"?name={name}"
@@ -194,17 +189,13 @@ def chat(request):
     return redirect('home')
 
 
-
 def newchat(request):
     if request.user.is_authenticated:
         current_user = request.user
     else:
         current_user, _ = User.objects.get_or_create(username="invitado")
         
-    # Obtener los contactos individuales del usuario
     contacts = Contact.objects.filter(user=current_user)
-    
-    # Obtener los grupos en los que participa el usuario
     groups = Conversation.objects.filter(is_group=True, participants=current_user)
     
     return render(request, 'newchat.html', {
@@ -213,158 +204,86 @@ def newchat(request):
     })
 
 
-
 def call(request):
-    recent_calls = []
-    if request.user.is_authenticated:
-        recent_calls = (Llamada.objects.filter(emisor=request.user) | 
-                        Llamada.objects.filter(receptor_principal=request.user)).order_by('-fecha_inicio')
-    return render(request, 'call.html', {'calls': recent_calls})
+    """
+    Renderiza el historial de llamadas de voz y video del usuario autenticado.
+    """
+    if not request.user.is_authenticated:
+        return redirect('onboard')
+        
+    recent_calls = Llamada.objects.filter(
+        Q(emisor=request.user) | Q(receptor_principal=request.user)
+    ).order_by('-fecha_inicio')[:20]
+
+    return render(request, 'call.html', {'recent_calls': recent_calls})
 
 
 def call_room(request, room_id):
-    call_obj = get_object_or_404(Llamada, id=room_id)
-    return render(request, 'call_room.html', {'call': call_obj})
+    """
+    Renderiza la sala interactiva de llamada (Voz o Video WebRTC).
+    """
+    if not request.user.is_authenticated:
+        return redirect('onboard')
+        
+    # 🛠️ CORREGIDO: Cierre de render y empaquetado de variables
+    llamada = get_object_or_404(Llamada, id=room_id)
+    return render(request, 'call_room.html', {
+        'room_id': room_id,
+        'llamada': llamada
+    })
 
 
 def profile(request):
-    prof = getattr(request.user, 'profile', None) if request.user.is_authenticated else None
-    return render(request, 'profile.html', {'profile': prof})
+    """
+    Renderiza la vista principal del Perfil levantando datos de seguridad y criptografía.
+    """
+    phone = request.user.username if request.user.is_authenticated else "Invitado"
+    current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
+    profile_obj, _ = UserProfile.objects.get_or_create(user=current_user)
+    
+    context = {
+        'user_phone': phone,
+        'sec_label': '🛡️ Blindado' if getattr(profile_obj, 'security_level', 0) == 1 else '🔓 Modo Normal',
+        'pub_key_full': getattr(profile_obj, 'pub_key', 'No disponible'),
+        'pub_key_short': (getattr(profile_obj, 'pub_key', '')[:14] + '...') if getattr(profile_obj, 'pub_key', '') else 'Sin clave'
+    }
+    return render(request, 'profile.html', context)
+
+
+def edit_profile(request):
+    """
+    Renderiza la pantalla para modificar los datos del perfil local.
+    """
+    current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
+    profile_obj, _ = UserProfile.objects.get_or_create(user=current_user)
+
+    context = {
+        'username': current_user.username,
+        'security_level': getattr(profile_obj, 'security_level', 0),
+        'pub_key': getattr(profile_obj, 'pub_key', '')
+    }
+    return render(request, 'edit_profile.html', context)
+
+
+def settings(request):
+    return render(request, 'settings.html')
+
+
+def about(request):
+    return render(request, 'about.html')
+
+
+def terms(request):
+    return render(request, 'terms.html')
 
 
 # ==========================================
-# 2. NUEVOS ENDPOINTS ASÍNCRONOS PROTEGIDOS
+# 2. MODALES Y ACCIONES ASÍNCRONAS (APIs)
 # ==========================================
-
-@csrf_exempt
-@require_POST
-def create_group_api(request):
-    """
-    Crea un nuevo grupo de forma persistente y asíncrona sin interferir con la sesión.
-    """
-    try:
-        data = json.loads(request.body.decode('utf-8'))
-        group_name = data.get('name', '').strip()
-        participant_phones = data.get('participants', [])
-
-        if not group_name:
-            return JsonResponse({'status': 'error', 'message': 'El nombre del grupo es obligatorio.'}, status=400)
-
-        if request.user.is_authenticated:
-            current_user = request.user
-        else:
-            current_user, _ = User.objects.get_or_create(username="invitado")
-
-        # Generar conversación persistente de tipo grupal
-        conversation = Conversation.objects.create(
-            is_group=True,
-            name=group_name,
-            created_by=current_user
-        )
-        
-        # El creador ingresa como primer participante
-        conversation.participants.add(current_user)
-
-        # Asociar a los miembros restantes marcados
-        for phone in participant_phones:
-            user_to_add = User.objects.filter(username=phone).first()
-            if user_to_add:
-                conversation.participants.add(user_to_add)
-
-        return JsonResponse({
-            'status': 'success', 
-            'message': 'Grupo registrado de forma persistente.',
-            'room_id': conversation.id
-        }, status=200)
-
-    except json.JSONDecodeError:
-        return JsonResponse({'status': 'error', 'message': 'Estructura JSON inválida.'}, status=400)
-    except Exception as e:
-        return JsonResponse({'status': 'error', 'message': f'Falla interna: {str(e)}'}, status=500)
-
-
-@csrf_exempt
-@require_POST
-def edit_group_api(request, group_id):
-    """
-    Modifica el nombre de una conversación grupal.
-    """
-    try:
-        data = json.loads(request.body.decode('utf-8'))
-        new_name = data.get('name', '').strip()
-        
-        if not new_name:
-            return JsonResponse({'status': 'error', 'message': 'El nombre no puede estar vacío.'}, status=400)
-            
-        group = get_object_or_404(Conversation, id=group_id, is_group=True)
-        group.name = new_name
-        group.save()
-        
-        return JsonResponse({'status': 'success', 'message': 'Nombre del grupo actualizado.'})
-    except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-
-
-@csrf_exempt
-@require_POST
-def delete_group_api(request, group_id):
-    """
-    Elimina por completo la conversación grupal de la plataforma.
-    """
-    try:
-        group = get_object_or_404(Conversation, id=group_id, is_group=True)
-        group.delete()
-        return JsonResponse({'status': 'success', 'message': 'Grupo eliminado correctamente.'})
-    except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-
-def group_detail_view(request, group_id):
-    """
-    Muestra la información de un grupo específico, sus miembros con nombres de la agenda y opciones de edición.
-    """
-    if request.user.is_authenticated:
-        current_user = request.user
-        # Creamos un mapa/diccionario rápido: { 'telefono': 'Nombre Guardado' }
-        # Ajustá 'user' o 'phone_number' si tus campos se llaman distinto en el modelo Contact
-        agenda_contactos = {
-            c.phone_number: c.name 
-            for c in Contact.objects.filter(user=current_user)
-        }
-    else:
-        current_user = User.objects.get_or_create(username="invitado")[0]
-        agenda_contactos = {}
-
-    # Obtenemos la conversación asegurándonos de que sea un grupo
-    group_conversation = get_object_or_404(Conversation, id=group_id, is_group=True)
-    
-    # Obtenemos la lista de todos los participantes del grupo
-    participants = group_conversation.participants.all()
-    
-    # Construimos una lista de miembros enriquecida con el nombre de la agenda
-    members_with_names = []
-    for member in participants:
-        # Buscamos el nombre en la agenda usando el username (que es el número)
-        nombre_agenda = agenda_contactos.get(member.username)
-        
-        members_with_names.append({
-            'username': member.username,
-            'contact_name': nombre_agenda,
-            'is_current_user': member == current_user
-        })
-    
-    return render(request, 'group.html', {
-        'group': group_conversation,
-        'members': members_with_names,
-        'current_user': current_user
-    })
-
 
 @csrf_exempt
 @require_POST
 def actualizar_clave_publica_api(request):
-    """
-    Sincroniza la clave Libsodium sin alterar el estado de autenticación del usuario.
-    """
     try:
         data = json.loads(request.body.decode('utf-8'))
         pub_key_base64 = data.get('public_key', '').strip()
@@ -372,10 +291,7 @@ def actualizar_clave_publica_api(request):
         if not pub_key_base64:
             return JsonResponse({'status': 'error', 'message': 'Clave pública vacía.'}, status=400)
 
-        if request.user.is_authenticated:
-            current_user = request.user
-        else:
-            current_user, _ = User.objects.get_or_create(username="invitado")
+        current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
 
         profile_obj, _ = UserProfile.objects.get_or_create(user=current_user)
         profile_obj.pub_key = pub_key_base64
@@ -388,11 +304,6 @@ def actualizar_clave_publica_api(request):
 
 @csrf_exempt
 def onboard(request):
-    """
-    Maneja el Onboarding de usuarios.
-    Si es POST: Inicia sesión usando su número telefónico y almacena su clave de Libsodium.
-    Si es GET: Renderiza la pantalla visual de Onboarding.
-    """
     if request.method == 'POST':
         try:
             data = json.loads(request.body.decode('utf-8'))
@@ -401,7 +312,6 @@ def onboard(request):
 
             if phone:
                 user, _ = User.objects.get_or_create(username=phone)
-                
                 profile_obj, _ = UserProfile.objects.get_or_create(user=user)
                 if public_key:
                     profile_obj.pub_key = public_key
@@ -411,20 +321,11 @@ def onboard(request):
                 return JsonResponse({'status': 'success', 'redirect_url': reverse('home')})
             
             return JsonResponse({'status': 'error', 'message': 'Teléfono requerido.'}, status=400)
-        except json.JSONDecodeError:
-            return JsonResponse({'status': 'error', 'message': 'JSON Inválido.'}, status=400)
         except Exception as e:
-            return JsonResponse({'status': 'error', 'message': f'Error interno: {str(e)}'}, status=500)
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
-    # 🔄 SOLUCCIÓN AL ERROR: Si es un GET (carga inicial), renderiza la pantalla de login/onboard
-    # Cambia 'onboard.html' por el nombre real de tu archivo de onboarding si es distinto
     return render(request, 'onboard.html')
 
-
-
-# ==========================================
-# 3. MODALES / ACCIONES ASÍNCRONAS
-# ==========================================
 
 @require_POST
 def modal_handler(request, modal_type):
@@ -450,28 +351,18 @@ def modal_handler(request, modal_type):
                     contact.contact = target_user
                     contact.save()
                     return JsonResponse({'status': 'success', 'message': 'Contacto actualizado con éxito.'})
-                else:
-                    return JsonResponse({'status': 'error', 'message': 'Contacto no encontrado.'}, status=404)
+                return JsonResponse({'status': 'error', 'message': 'Contacto no encontrado.'}, status=404)
             else:
-                Contact.objects.create(
-                    user=current_user,
-                    contact=target_user,
-                    name=name,
-                    phone_number=phone
-                )
+                Contact.objects.create(user=current_user, contact=target_user, name=name, phone_number=phone)
                 return JsonResponse({'status': 'success', 'message': 'Contacto creado con éxito.'})
                 
         return JsonResponse({'status': 'error', 'message': 'Tipo de modal no reconocido.'}, status=400)
-
     except Exception as e:
-        return JsonResponse({'status': 'error', 'message': f'Error en el servidor: {str(e)}'}, status=500)
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
 @csrf_exempt
 def send_message_api(request):
-    """
-    Recibe el payload del mensaje encriptado desde el frontend y lo guarda en la BD.
-    """
     if request.method == 'POST':
         try:
             data = json.loads(request.body.decode('utf-8'))
@@ -485,12 +376,8 @@ def send_message_api(request):
             current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
 
             nuevo_mensaje = Message.objects.create(
-                conversation=conversation,
-                sender=current_user,
-                content=encrypted_content,
-                msg_type='text'
+                conversation=conversation, sender=current_user, content=encrypted_content, msg_type='text'
             )
-
             conversation.save()
 
             return JsonResponse({
@@ -499,191 +386,226 @@ def send_message_api(request):
                 'message_id': nuevo_mensaje.id,
                 'timestamp': nuevo_mensaje.timestamp.strftime('%H:%M')
             })
-
-        except json.JSONDecodeError:
-            return JsonResponse({'status': 'error', 'message': 'JSON Inválido.'}, status=400)
         except Exception as e:
-            return JsonResponse({'status': 'error', 'message': f'Error en el servidor: {str(e)}'}, status=500)
-
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     return JsonResponse({'status': 'error', 'message': 'Método no permitido.'}, status=405)
 
 
 @csrf_exempt
 def delete_message_api(request, message_id):
-    """
-    Elimina un mensaje de la base de datos de forma permanente.
-    """
     if request.method == 'POST':
         try:
             mensaje = get_object_or_404(Message, id=message_id)
             current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
             
             if mensaje.sender != current_user and current_user.username != "invitado":
-                return JsonResponse({'status': 'error', 'message': 'No tienes permisos para borrar este mensaje.'}, status=403)
+                return JsonResponse({'status': 'error', 'message': 'No tienes permisos.'}, status=403)
             
             mensaje.delete()
-            return JsonResponse({'status': 'success', 'message': 'Mensaje eliminado del servidor sin dejar rastros.'})
-            
+            return JsonResponse({'status': 'success', 'message': 'Mensaje eliminado del servidor.'})
         except Exception as e:
-            return JsonResponse({'status': 'error', 'message': f'Error en el servidor: {str(e)}'}, status=500)
-
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     return JsonResponse({'status': 'error', 'message': 'Método no permitido.'}, status=405)
 
 
-def settings_view(request):
-    """
-    Renderiza la pantalla de Ajustes y Seguridad.
-    """
-    current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
-    profile, _ = UserProfile.objects.get_or_create(user=current_user)
+@csrf_exempt
+@require_POST
+def save_contact_api(request):
+    try:
+        if not request.user.is_authenticated:
+            return JsonResponse({'status': 'error', 'message': 'Sesión expirada.'}, status=401)
 
-    context = {
-        'security_level': profile.security_level,
-        'pub_key': profile.pub_key or 'No generada',
-    }
-    return render(request, 'settings.html', context)
+        data = json.loads(request.body)
+        contact_id = data.get('contact_id')
+        name = data.get('name', '').strip()
+        phone_number = data.get('phone_number', '').strip()
+        public_key = data.get('public_key', '').strip()
+
+        if not name or not phone_number:
+            return JsonResponse({'status': 'error', 'message': 'Campos obligatorios incompletos.'}, status=400)
+
+        associated_user = User.objects.filter(username=phone_number).first()
+
+        if associated_user and public_key:
+            profile, _ = UserProfile.objects.get_or_create(user=associated_user)
+            profile.pub_key = public_key
+            profile.save()
+
+        if contact_id:
+            contact_obj = get_object_or_404(Contact, id=contact_id, user=request.user)
+            contact_obj.name = name
+            contact_obj.phone_number = phone_number
+            contact_obj.contact = associated_user
+            contact_obj.save()
+            message = 'Contacto actualizado con éxito.'
+        else:
+            Contact.objects.create(user=request.user, contact=associated_user, name=name, phone_number=phone_number)
+            message = 'Contacto guardado correctamente.'
+
+        return JsonResponse({'status': 'success', 'message': message})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
 @csrf_exempt
+@require_POST
+def delete_contact_api(request, contact_id):
+    try:
+        if not request.user.is_authenticated:
+            return JsonResponse({'status': 'error', 'message': 'Sesión no válida.'}, status=401)
+
+        contact = get_object_or_404(Contact, id=contact_id, user=request.user)
+        contact.delete()
+        return JsonResponse({'status': 'success', 'message': 'Contacto eliminado de la lista.'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_POST
 def update_security_level_api(request):
-    """
-    API endpoint para actualizar el nivel de seguridad (Modo Blindado).
-    """
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body.decode('utf-8'))
-            level = int(data.get('security_level', 0))
+    try:
+        if not request.user.is_authenticated:
+            return JsonResponse({'status': 'error', 'message': 'Sesión no válida.'}, status=401)
 
-            current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
-            profile, _ = UserProfile.objects.get_or_create(user=current_user)
+        data = json.loads(request.body)
+        security_level = data.get('security_level')
+
+        if security_level is None:
+            return JsonResponse({'status': 'error', 'message': 'Nivel de seguridad requerido.'}, status=400)
+
+        sec_int = int(security_level)
+        if sec_int not in (0, 1):
+            return JsonResponse({'status': 'error', 'message': 'Nivel inválido.'}, status=400)
+
+        profile_obj, _ = UserProfile.objects.get_or_create(user=request.user)
+        profile_obj.security_level = sec_int
+        profile_obj.save()
+
+        return JsonResponse({'status': 'success', 'message': 'Nivel de seguridad actualizado correctamente.'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+# ==========================================
+# 3. INTERFACES Y APIS DE GRUPOS (Sincronizados)
+# ==========================================
+
+def group_detail_view(request, group_id):
+    """
+    Provee los participantes en HTML o JSON para pre-tildar a los miembros actuales.
+    """
+    group = get_object_or_404(Conversation, id=group_id, is_group=True)
+    members = group.participants.all()
+
+    if request.GET.get('format') == 'json':
+        member_phones = [m.username for m in members]
+        return JsonResponse({
+            'id': group.id,
+            'name': group.name,
+            'members': member_phones
+        })
+
+    current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")
+    members_context = []
+    
+    for m in members:
+        contact_record = Contact.objects.filter(user=current_user, phone_number=m.username).first()
+        members_context.append({
+            'username': m.username,
+            'contact_name': contact_record.name if contact_record else None,
+            'is_current_user': (m.id == current_user.id)
+        })
+
+    return render(request, 'group.html', {
+        'group': group,
+        'members': members_context
+    })
+
+@csrf_exempt
+@require_POST
+def edit_group_api(request, group_id):
+    """
+    LÓGICA DE ALTA INTEGRIDAD COMPLETA: Modifica el nombre, sanitiza de forma estricta los miembros,
+    y asegura la creación del registro en caliente si el contacto aún no existe en la plataforma (auth_user).
+    """
+    try:
+        group = get_object_or_404(Conversation, id=group_id, is_group=True)
+        data = json.loads(request.body)
+        new_name = data.get('name', '').strip()
+        selected_member_phones = data.get('members', [])
+
+        if not new_name:
+            return JsonResponse({'status': 'error', 'message': 'El nombre es requerido.'}, status=400)
+
+        # 1. Actualización del nombre de la sala
+        group.name = new_name
+        group.save()
+
+        # 2. Sanitizado estricto de números: extrae solo los dígitos numéricos entrantes
+        clean_phones = [''.join(filter(str.isdigit, str(phone))) for phone in selected_member_phones if phone]
+
+        # 3. Mapeo y creación segura en caliente por número de teléfono
+        matching_users = []
+        for phone in clean_phones:
+            # 🛠️ CORRECCIÓN CLAVE: get_or_create asegura que si Marito no existe en la tabla de usuarios, 
+            # Django lo cree de forma instantánea en la BD para que el ManyToMany no falle ni lo ignore.
+            user_obj, created = User.objects.get_or_create(username=phone)
+            if created:
+                # Inicializamos su perfil criptográfico base asociado de forma segura
+                UserProfile.objects.get_or_create(user=user_obj)
             
-            profile.security_level = level
-            profile.save()
+            matching_users.append(user_obj)
 
-            return JsonResponse({'status': 'success', 'security_level': profile.security_level})
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+        # 4. Sincronización real ManyToMany: asienta y graba los cambios de tildes de forma persistente
+        group.participants.set(matching_users)
 
-    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+        # 5. Aseguramos la permanencia del usuario operador actual dentro del grupo grupal
+        if request.user.is_authenticated and request.user not in group.participants.all():
+            group.participants.add(request.user)
+
+        return JsonResponse({'status': 'success', 'message': 'Grupo actualizado con éxito.'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
-def profile(request):
-    """
-    Vista del perfil de usuario con datos criptográficos y nivel de seguridad.
-    """
-    if request.user.is_authenticated:
-        current_user = request.user
-    else:
-        current_user, _ = User.objects.get_or_create(username="invitado")
+@csrf_exempt
+@require_POST
+def create_group_api(request):
+    try:
+        data = json.loads(request.body)
+        name = data.get('name', '').strip()
+        member_phones = data.get('members', [])
 
-    user_profile, _ = UserProfile.objects.get_or_create(user=current_user)
+        if not name:
+            return JsonResponse({'status': 'error', 'message': 'El nombre del grupo es obligatorio.'}, status=400)
 
-    # Formatear el label del nivel de seguridad
-    sec_label = "Modo Blindado 🛡️" if user_profile.security_level == 1 else "Modo Normal ⚡"
+        current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")
 
-    # Formatear la vista previa corta de la clave pública
-    pub_key = user_profile.pub_key or ""
-    if len(pub_key) > 16:
-        short_key = f"{pub_key[:8]}...{pub_key[-8:]}"
-    else:
-        short_key = pub_key or "No disponible"
+        new_group = Conversation.objects.create(name=name, is_group=True, created_by=current_user)
+        
+        clean_phones = [''.join(filter(str.isdigit, str(phone))) for phone in member_phones if phone]
+        users_to_add = User.objects.filter(username__in=clean_phones)
+        
+        new_group.participants.set(users_to_add)
+        new_group.participants.add(current_user)
 
-    context = {
-        'user_phone': current_user.username,
-        'sec_label': sec_label,
-        'pub_key_full': pub_key,
-        'pub_key_short': short_key,
-        'profile': user_profile,
-    }
-    return render(request, 'profile.html', context)
+        return JsonResponse({'status': 'success', 'message': 'Grupo creado exitosamente.'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
-def edit_profile(request):
-    """
-    Vista para editar la información del perfil del usuario.
-    """
-    if request.user.is_authenticated:
-        current_user = request.user
-    else:
-        current_user, _ = User.objects.get_or_create(username="invitado")
 
-    if request.method == 'POST':
-        # Procesar actualización del nombre de usuario o teléfono
-        new_username = request.POST.get('username', '').strip()
-        if new_username:
-            current_user.username = new_username
-            current_user.save()
-            return redirect('profile')
-
-    return render(request, 'edit_profile.html', {'user': current_user})
-
-def settings(request):
-    """
-    Vista de Ajustes y Seguridad.
-    """
-    current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")[0]
-    profile, _ = UserProfile.objects.get_or_create(user=current_user)
-
-    context = {
-        'security_level': profile.security_level,
-        'pub_key': profile.pub_key or 'No generada',
-    }
-    return render(request, 'settings.html', context)
+@csrf_exempt
+@require_POST
+def delete_group_api(request, group_id):
+    try:
+        group = get_object_or_404(Conversation, id=group_id, is_group=True)
+        group.delete()
+        return JsonResponse({'status': 'success', 'message': 'Grupo eliminado correctamente.'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
 def logout_view(request):
-    """
-    Cierra la sesión del usuario en Django y destruye las variables de sesión del servidor.
-    """
     logout(request)
     return redirect('onboard')
-
-def about(request):
-    """
-    Renderiza la pantalla 'Acerca de'.
-    """
-    return render(request, 'about.html')
-
-
-def terms(request):
-    """
-    Renderiza la pantalla de 'Términos y Condiciones'.
-    """
-    return render(request, 'terms.html')
-
-
-
-@require_POST
-def delete_contact_api(request, contact_id):
-    """
-    Elimina un contacto guardado por el usuario actual.
-    """
-    try:
-        current_user = (
-            request.user
-            if request.user.is_authenticated
-            else User.objects.get_or_create(username="invitado")[0]
-        )
-
-        contact = Contact.objects.filter(
-            id=contact_id,
-            user=current_user
-        ).first()
-
-        if not contact:
-            return JsonResponse({
-                'status': 'error',
-                'message': 'Contacto no encontrado.'
-            }, status=404)
-
-        contact.delete()
-
-        return JsonResponse({
-            'status': 'success',
-            'message': 'Contacto eliminado correctamente.'
-        })
-
-    except Exception as e:
-        return JsonResponse({
-            'status': 'error',
-            'message': str(e)
-        }, status=500)

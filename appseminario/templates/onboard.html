@@ -26,8 +26,11 @@
         </p>
         
         <!-- Formulario de ingreso -->
-        <label for="me">Tu número (con código de país)</label>
-        <input id="me" inputmode="numeric" placeholder="5491137824591" autofocus>
+        <label for="my_name">Tu nombre / Alias</label>
+        <input id="my_name" type="text" placeholder="Ej. Juan Pérez" autofocus>
+
+        <label for="my_phone">Tu número (con código de país)</label>
+        <input id="my_phone" inputmode="numeric" placeholder="5491137824591">
         
         <label>Seguridad</label>
         <div class="seg">
@@ -46,6 +49,7 @@
         <p class="tag" id="oerr" style="color: var(--red); margin-top: 10px; font-weight: 600; text-align: center;"></p>
     </div>
 </div>
+
 
 <script>
   let SECURE = 0;
@@ -85,11 +89,24 @@
     const err = document.getElementById('oerr');
     if (err) err.textContent = '';
 
-    const el = document.getElementById('me');
-    if (!el) return;
-    const n = el.value.replace(/\D/g, '');
+    // Captura de los inputs con los IDs correctos del HTML
+    const inputName = document.getElementById('my_name');
+    const inputPhone = document.getElementById('my_phone');
     
-    if (n.length < 6) {
+    if (!inputName || !inputPhone) return;
+
+    // Sanitización y obtención de valores
+    const nameVal = inputName.value.trim();
+    const phoneVal = inputPhone.value.replace(/\D/g, '');
+    
+    // 🛠️ VALIDACIÓN 1: Comprobar si el nombre está vacío
+    if (nameVal.length === 0) {
+      if (err) err.textContent = 'Por favor, ingresá tu nombre o un alias.';
+      return;
+    }
+
+    // 🛠️ VALIDACIÓN 2: Comprobar si el número está incompleto o vacío
+    if (phoneVal.length < 6) {
       if (err) err.textContent = 'Poné tu número completo con código de país.';
       return;
     }
@@ -115,17 +132,20 @@
         console.log("Nuevas claves criptográficas generadas para el dispositivo.");
       }
 
-      localStorage.setItem('sp_me', n);
+      // Persistencia local de los datos del perfil
+      localStorage.setItem('sp_name', nameVal);
+      localStorage.setItem('sp_me', phoneVal);
       localStorage.setItem('sp_secure', SECURE ? '1' : '0');
 
-      // Petición directa a la URL de Django sin restricciones CSRF en el login
+      // Petición directa a la URL de Django incorporando el nuevo parámetro "name"
       const response = await fetch("{% url 'onboard' %}", {
           method: 'POST',
           headers: {
               'Content-Type': 'application/json'
           },
           body: JSON.stringify({ 
-              phone: n,
+              name: nameVal,
+              phone: phoneVal,
               public_key: pubKeyBase64
           })
       });
@@ -144,3 +164,5 @@
     }
 }
 </script>
+</body>
+</html>

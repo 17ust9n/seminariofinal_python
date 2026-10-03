@@ -32,14 +32,22 @@
                 </svg>
             </div>
 
-            <!-- Nombre de Usuario / Teléfono -->
-            <div class="user-name">{{ user_phone }}</div>
+            <!-- 🛠️ NOMBRE DE USUARIO / TELÉFONO DINÁMICO -->
+            <!-- Agregamos IDs y estilos de bloque apilados para jerarquizar el nombre sobre el número -->
+            <div id="user-profile-header" style="text-align: center; margin-bottom: 20px;">
+                <div id="user-display-name" class="user-name" style="font-size: 20px; font-weight: 600; color: #fff;">
+                    {{ user_phone }}
+                </div>
+                <div id="user-display-phone" style="font-size: 14px; color: #888; margin-top: 4px;">
+                    <!-- Se completará mediante JavaScript si está en LocalStorage -->
+                </div>
+            </div>
 
             <!-- Modo de Seguridad y Clave Pública (Toca para copiar) -->
             <div class="user-info-box" id="infoBox" data-full-key="{{ pub_key_full }}">
                 <div>{{ sec_label }}</div>
                 <div style="margin-top: 4px;">Clave Pública (Toca para copiar):</div>
-                <div class="key-code">{{ pub_key_short }}</div>
+                <div class="key-code"/>{{ pub_key_short }}</div>
             </div>
 
             <!-- Separador -->
@@ -99,6 +107,23 @@
         const infoBox = document.getElementById('infoBox');
         const toast = document.getElementById('toast');
         const btnLogout = document.getElementById('btnLogout');
+
+        // === 🛠️ LECTURA DINÁMICA DEL NOMBRE DESDE LOCALSTORAGE ===
+        const localName = localStorage.getItem('sp_name');
+        const localPhone = localStorage.getItem('sp_me');
+        const nameElement = document.getElementById('user-display-name');
+        const phoneElement = document.getElementById('user-display-phone');
+
+        // Si existe un nombre guardado localmente, lo priorizamos arriba y bajamos el número
+        if (localName && nameElement) {
+            nameElement.textContent = localName;
+            if (localPhone && phoneElement) {
+                phoneElement.textContent = `+${localPhone}`;
+            }
+        } else if (localPhone && nameElement) {
+            // Backup por si no encuentra el alias por alguna razón externa
+            nameElement.textContent = `+${localPhone}`;
+        }
 
         // 1. Copiar clave pública al portapapeles
         infoBox.addEventListener('click', () => {
