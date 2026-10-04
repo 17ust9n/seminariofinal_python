@@ -12,7 +12,7 @@ SECRET_KEY = 'django-insecure-*i50%m07#_0twx*%65ha%&sg*tje1!69xihb7y)#-aeb+^z$5k
 
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']  # Permite pruebas locales y en red local
+ALLOWED_HOSTS = ['*']  # Permite peticiones locales y dominios de Vercel
 
 
 # Application definition
@@ -59,10 +59,11 @@ WSGI_APPLICATION = 'infoseminario.wsgi.application'
 
 
 # Database
+# En Vercel el sistema de archivos es de solo lectura, excepto /tmp
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': '/tmp/db.sqlite3' if os.environ.get('VERCEL') else BASE_DIR / 'db.sqlite3',
     }
 }
 
@@ -83,22 +84,16 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
+# Static & Media files
 STATIC_URL = '/static/'
-
-# Solo buscar si la carpeta existe en el disco
 STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# Media files (Archivos subidos por usuarios: Avatares, Audios)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Si manejas la sesión por localStorage en JS, no fuerces el login_url automático de Django
-# LOGIN_URL = 'onboard'
-# LOGIN_REDIRECT_URL = 'home'
-# LOGOUT_REDIRECT_URL = 'onboard'
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 
 # Firebase Admin SDK Configuration
 import firebase_admin
@@ -109,9 +104,3 @@ FIREBASE_KEY_PATH = BASE_DIR / 'firebase-key.json'
 if FIREBASE_KEY_PATH.exists() and not firebase_admin._apps:
     cred = credentials.Certificate(str(FIREBASE_KEY_PATH))
     firebase_admin.initialize_app(cred)
-
-
-# STATIC FILES CONFIGURATION FOR VERCEL
-STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
-STATIC_ROOT = BASE_DIR / 'staticfiles_published'
