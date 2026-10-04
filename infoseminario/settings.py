@@ -96,11 +96,19 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 # Firebase Admin SDK Configuration
+import json
 import firebase_admin
 from firebase_admin import credentials
 
 FIREBASE_KEY_PATH = BASE_DIR / 'firebase-key.json'
 
-if FIREBASE_KEY_PATH.exists() and not firebase_admin._apps:
-    cred = credentials.Certificate(str(FIREBASE_KEY_PATH))
-    firebase_admin.initialize_app(cred)
+if not firebase_admin._apps:
+    if FIREBASE_KEY_PATH.exists():
+        # Uso Local
+        cred = credentials.Certificate(str(FIREBASE_KEY_PATH))
+        firebase_admin.initialize_app(cred)
+    elif os.environ.get('FIREBASE_CREDENTIALS_JSON'):
+        # Uso en Vercel (mediante Environment Variable)
+        cred_dict = json.loads(os.environ.get('FIREBASE_CREDENTIALS_JSON'))
+        cred = credentials.Certificate(cred_dict)
+        firebase_admin.initialize_app(cred)
