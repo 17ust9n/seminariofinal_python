@@ -109,3 +109,9 @@ FIREBASE_KEY_PATH = BASE_DIR / 'firebase-key.json'
 if FIREBASE_KEY_PATH.exists() and not firebase_admin._apps:
     cred = credentials.Certificate(str(FIREBASE_KEY_PATH))
     firebase_admin.initialize_app(cred)
+
+
+# STATIC FILES CONFIGURATION FOR VERCEL
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
+STATIC_ROOT = BASE_DIR / 'staticfiles_published'
