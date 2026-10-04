@@ -26,3 +26,7 @@ env/
 /staticfiles/
 
 # Otros archivos que no quieres subir (añade lo que necesites)
+
+# Firebase Credentials
+firebase-key.json
+*.json

@@ -99,3 +99,13 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # LOGOUT_REDIRECT_URL = 'onboard'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Firebase Admin SDK Configuration
+import firebase_admin
+from firebase_admin import credentials
+
+FIREBASE_KEY_PATH = BASE_DIR / 'firebase-key.json'
+
+if FIREBASE_KEY_PATH.exists() and not firebase_admin._apps:
+    cred = credentials.Certificate(str(FIREBASE_KEY_PATH))
+    firebase_admin.initialize_app(cred)
