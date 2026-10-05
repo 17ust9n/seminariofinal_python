@@ -1,131 +1,582 @@
 {% load static %}
+
 <!DOCTYPE html>
+
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Starssenger - Llamada{% endblock %}</title>
-
-    <!-- CSS principal -->
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Starssenger - Llamada</title>
     <link rel="stylesheet" href="{% static 'estilos.css' %}?v=125">
 
-    <!-- Cargamos Libsodium desde CDN (Para cifrado de señalización / WebRTC) -->
-    <script src="https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.7.13/dist/browsers/sodium.js" async></script>
+```
+<style>
+    html,body{height:100%;margin:0;background:#000}
+    #call{position:relative;width:100%;height:100vh;overflow:hidden;background:#0b1624}
+    #remoteVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#0b1624}
+    #localVideo{
+        position:absolute;top:16px;right:16px;width:120px;height:160px;
+        object-fit:cover;border-radius:12px;border:2px solid #fff;
+        background:#1c2b44;transform:scaleX(-1);z-index:5
+    }
+    #localVideo.off{opacity:.25}
+    .voice-face{
+        position:absolute;inset:0;display:flex;flex-direction:column;
+        align-items:center;justify-content:center;gap:8px;color:#fff;
+        z-index:2;pointer-events:none;transition:opacity .3s
+    }
+    .voice-face.hidden{opacity:0}
+    .vfav{
+        width:96px;height:96px;border-radius:50%;background:#12304f;
+        display:flex;align-items:center;justify-content:center;font-size:40px
+    }
+    .vf-name{font-size:22px;font-weight:600}
+    .vf-state{opacity:.8}
+    .call-actions{
+        position:absolute;left:0;right:0;bottom:28px;z-index:6;
+        display:flex;justify-content:center;gap:16px
+    }
+    .cbtn{
+        width:60px;height:60px;border-radius:50%;border:none;
+        cursor:pointer;font-size:24px;background:#2a3b55;color:#fff
+    }
+    .cbtn.off{background:#fff;color:#000}
+    .cbtn.hang{background:#e03131}
+</style>
+```
 
-    {% block extra_head %}{% endblock %}
 </head>
 
 <body>
-  <!-- Contenedor Principal de la Llamada -->
-  <div id="call" class="screen call-screen on">
-    <div id="grid" class="call-grid"></div>
-    
+    <div id="call" class="screen call-screen on">
+
+```
+    <video id="remoteVideo" autoplay playsinline></video>
+    <video id="localVideo" autoplay playsinline muted></video>
+
     <div id="voiceface" class="voice-face">
-      <div class="vfav" id="vfAv">U</div>
-      <div id="vfName" class="vf-name">Conectando...</div>
-      <div id="vfState" class="vf-state">Llamando</div>
+        <div class="vfav" id="vfAv">{{ peer_name|slice:":1"|upper }}</div>
+        <div id="vfName" class="vf-name">{{ peer_name }}</div>
+        <div id="vfState" class="vf-state">Conectando...</div>
     </div>
-    
-    <!-- Streams de Audio Ocultos -->
-    <div id="audios" class="hidden-audios"></div>
-    
-    <!-- Teclado / Acciones rápidas en llamada -->
-    <div id="callkeys" class="call-keys"></div>
-    
-    <!-- Acciones principales -->
+
     <div class="call-actions">
-      <button id="addcall" class="btn-call-action add" title="Sumar a la llamada" aria-label="Sumar a la llamada">＋</button>
-      <button id="hang" class="btn-call-action hang">Colgar</button>
+        <button id="btnMic" class="cbtn" title="Silenciar micrófono">🎤</button>
+        <button id="btnCam" class="cbtn" title="Apagar cámara">📷</button>
+        <button id="btnFlip" class="cbtn" title="Cambiar cámara" style="display:none">🔄</button>
+        <button id="hang" class="cbtn hang" title="Colgar">📞</button>
     </div>
-  </div>
+</div>
 
-  <!-- Banner / Modal de Llamada Entrante -->
-  <div id="incall" class="incall-banner">
-    <div class="incall-info">
-      <span class="incall-icon">📹</span>
-      <b id="icName">Llamada entrante...</b>
-    </div>
-    <span class="sp"></span>
-    <div class="incall-buttons">
-      <button id="btnDecline" class="btn dec" onclick="declineCall()">Rechazar</button>
-      <button id="btnAnswer" class="btn acc" onclick="answerCall()">Contestar</button>
-    </div>
-  </div>
-
-{% block extra_js %}
-<!-- LÓGICA JAVASCRIPT — CALL -->
 <script>
-  document.addEventListener('DOMContentLoaded', async function() {
-    // Inicializar Libsodium para el intercambio seguro de señalización WebRTC
-    try {
-      await sodium.ready;
-      console.log("Libsodium cargado en la pantalla de llamada.");
-    } catch (e) {
-      console.error("Error al cargar Libsodium en llamada:", e);
+    const CALL_ID = "{{ room_id|escapejs }}";
+    const IS_CALLER = {{ is_caller|yesno:"true,false" }};
+    const HOME_URL = "{% url 'home' %}";
+
+    const ICE_SERVERS = [
+        { urls: "stun:stun.l.google.com:19302" }
+    ];
+
+    let pc = null;
+    let localStream = null;
+    let remoteStream = null;
+    let lastSignal = 0;
+    let remoteSet = false;
+    let pendingIce = [];
+    let ended = false;
+    let polling = false;
+    let answered = false;
+    let offerSent = false;
+    let facing = "user";
+
+    const startedAt = Date.now();
+
+    const $state = document.getElementById("vfState");
+    const $face = document.getElementById("voiceface");
+    const $remote = document.getElementById("remoteVideo");
+    const $local = document.getElementById("localVideo");
+    const $btnMic = document.getElementById("btnMic");
+    const $btnCam = document.getElementById("btnCam");
+    const $btnFlip = document.getElementById("btnFlip");
+
+    function setState(text) {
+        $state.textContent = text;
     }
 
-    const hangBtn = document.getElementById('hang');
-    const addCallBtn = document.getElementById('addcall');
-    const incallBanner = document.getElementById('incall');
+    async function post(path, body) {
+        try {
+            const response = await fetch(path, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(body)
+            });
 
-    // Asignación de listeners
-    if (hangBtn) hangBtn.addEventListener('click', hangup);
-    if (addCallBtn) addCallBtn.addEventListener('click', openInvite);
+            if (!response.ok) {
+                console.error("POST error:", path, response.status);
+                return null;
+            }
 
-    // Control de llamada entrante usando la clase .on de estilos.css
-    if (typeof pendingCall !== 'undefined' && pendingCall) {
-      const icName = document.getElementById('icName');
-      if (icName) {
-        icName.textContent = typeof nameFor === 'function' ? nameFor(pendingCall.from) : pendingCall.from;
-      }
-      if (incallBanner) incallBanner.classList.add('on');
-    }
-  });
-
-  function hangup() {
-    const callScreen = document.getElementById('call');
-    if (callScreen) callScreen.classList.remove('on');
-    
-    // Detener streams WebRTC si existen
-    if (window.localStream) {
-      window.localStream.getTracks().forEach(track => track.stop());
-      window.localStream = null;
+            return await response.json();
+        } catch (error) {
+            console.error("POST exception:", path, error);
+            return null;
+        }
     }
 
-    // Redireccionar al home o cerrar ventana
-    if (document.referrer) {
-      window.location.href = document.referrer;
-    } else {
-      window.location.href = "{% url 'home' %}";
+    async function sendSignal(kind, payload) {
+        console.log("Enviando signal:", kind);
+
+        return await post(
+            `/api/calls/${CALL_ID}/signal/`,
+            { kind, payload }
+        );
     }
-  }
 
-  function openInvite() {
-    if (typeof openModal === 'function') {
-      openModal('mInvite');
-    } else {
-      const mInvite = document.getElementById('mInvite');
-      if (mInvite) mInvite.classList.add('on');
+    async function getMedia() {
+        if (!navigator.mediaDevices?.getUserMedia) {
+            console.error("getUserMedia no está disponible");
+            return null;
+        }
+
+        try {
+            return await navigator.mediaDevices.getUserMedia({
+                audio: true,
+                video: {
+                    facingMode: "user",
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            });
+        } catch (videoError) {
+            console.warn("No se pudo obtener video:", videoError);
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: true
+                });
+
+                $btnCam.style.display = "none";
+                return stream;
+            } catch (audioError) {
+                console.error("No se pudo obtener audio:", audioError);
+                return null;
+            }
+        }
     }
-  }
 
-  function answerCall() {
-    const incallBanner = document.getElementById('incall');
-    if (incallBanner) incallBanner.classList.remove('on');
-    
-    const vfState = document.getElementById('vfState');
-    if (vfState) vfState.textContent = 'En llamada';
-    
-    console.log("Llamada aceptada.");
-  }
+    function createPeerConnection() {
+        pc = new RTCPeerConnection({
+            iceServers: ICE_SERVERS
+        });
 
-  function declineCall() {
-    const incallBanner = document.getElementById('incall');
-    if (incallBanner) incallBanner.classList.remove('on');
-    
-    hangup();
-  }
+        pc.onicecandidate = async event => {
+            if (!event.candidate) return;
+
+            console.log("ICE local:", event.candidate.candidate);
+
+            await sendSignal(
+                "ice",
+                event.candidate.toJSON()
+            );
+        };
+
+        pc.ontrack = event => {
+            console.log("Track remoto:", event.track.kind);
+
+            if (!event.streams?.[0]) return;
+
+            remoteStream = event.streams[0];
+            $remote.srcObject = remoteStream;
+            $remote.play().catch(() => {});
+
+            $face.classList.add("hidden");
+            setState("En llamada");
+        };
+
+        pc.onconnectionstatechange = () => {
+            console.log("Connection state:", pc.connectionState);
+
+            switch (pc.connectionState) {
+                case "connected":
+                    answered = true;
+                    setState("En llamada");
+                    $face.classList.add("hidden");
+                    break;
+
+                case "connecting":
+                    setState("Conectando...");
+                    break;
+
+                case "disconnected":
+                    setState("Conexión interrumpida...");
+                    break;
+
+                case "failed":
+                    endCall(true, "La conexión falló");
+                    break;
+            }
+        };
+
+        pc.oniceconnectionstatechange = () => {
+            console.log("ICE state:", pc.iceConnectionState);
+        };
+
+        return pc;
+    }
+
+    async function createAndSendOffer() {
+        if (!pc || offerSent) return;
+
+        try {
+            console.log("Creando offer...");
+
+            const offer = await pc.createOffer({
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: true
+            });
+
+            await pc.setLocalDescription(offer);
+
+            await sendSignal("offer", {
+                type: pc.localDescription.type,
+                sdp: pc.localDescription.sdp
+            });
+
+            offerSent = true;
+            console.log("Offer enviada");
+        } catch (error) {
+            console.error("Error creando offer:", error);
+        }
+    }
+
+    async function startCall() {
+        console.log("=================================");
+        console.log("INICIANDO LLAMADA");
+        console.log("CALL_ID:", CALL_ID);
+        console.log("IS_CALLER:", IS_CALLER);
+        console.log("=================================");
+
+        setState(IS_CALLER ? "Solicitando cámara..." : "Esperando llamada...");
+
+        localStream = await getMedia();
+
+        if (!localStream) {
+            setState("No se pudo acceder al micrófono/cámara");
+            return;
+        }
+
+        $local.srcObject = localStream;
+        $local.play().catch(() => {});
+
+        createPeerConnection();
+
+        localStream.getTracks().forEach(track => {
+            console.log("Track local:", track.kind);
+            pc.addTrack(track, localStream);
+        });
+
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const cameras = devices.filter(d => d.kind === "videoinput");
+
+            if (cameras.length > 1 && localStream.getVideoTracks().length) {
+                $btnFlip.style.display = "";
+            }
+        } catch (error) {
+            console.warn("No se pudieron enumerar cámaras");
+        }
+
+        if (IS_CALLER) {
+            setState("Llamando...");
+            await createAndSendOffer();
+        } else {
+            setState("Esperando conexión...");
+        }
+
+        pollLoop();
+    }
+
+    async function flushIce() {
+        if (!pc || !remoteSet) return;
+
+        for (const candidate of pendingIce) {
+            try {
+                await pc.addIceCandidate(
+                    new RTCIceCandidate(candidate)
+                );
+            } catch (error) {
+                console.error("Error ICE pendiente:", error);
+            }
+        }
+
+        pendingIce = [];
+    }
+
+    async function handleSignal(signal) {
+        if (!pc || ended) return;
+
+        console.log("Signal recibida:", signal.kind);
+
+        if (signal.kind === "offer") {
+            if (IS_CALLER) return;
+
+            try {
+                await pc.setRemoteDescription(
+                    new RTCSessionDescription(signal.payload)
+                );
+
+                remoteSet = true;
+                await flushIce();
+
+                const answer = await pc.createAnswer({
+                    offerToReceiveAudio: true,
+                    offerToReceiveVideo: true
+                });
+
+                await pc.setLocalDescription(answer);
+
+                await sendSignal("answer", {
+                    type: pc.localDescription.type,
+                    sdp: pc.localDescription.sdp
+                });
+
+                await post(
+                    `/api/calls/${CALL_ID}/state/`,
+                    { estado: "CO" }
+                );
+
+                setState("Conectando...");
+            } catch (error) {
+                console.error("Error procesando offer:", error);
+            }
+
+            return;
+        }
+
+        if (signal.kind === "answer") {
+            if (!IS_CALLER) return;
+
+            try {
+                await pc.setRemoteDescription(
+                    new RTCSessionDescription(signal.payload)
+                );
+
+                remoteSet = true;
+                await flushIce();
+            } catch (error) {
+                console.error("Error aplicando answer:", error);
+            }
+
+            return;
+        }
+
+        if (signal.kind === "ice") {
+            if (!signal.payload) return;
+
+            if (remoteSet) {
+                try {
+                    await pc.addIceCandidate(
+                        new RTCIceCandidate(signal.payload)
+                    );
+                } catch (error) {
+                    console.error("Error agregando ICE:", error);
+                }
+            } else {
+                pendingIce.push(signal.payload);
+            }
+        }
+    }
+
+    async function pollLoop() {
+        if (ended) return;
+
+        if (!polling) {
+            polling = true;
+
+            try {
+                const response = await fetch(
+                    `/api/calls/${CALL_ID}/signals/?after=${lastSignal}`,
+                    {
+                        credentials: "same-origin",
+                        cache: "no-store"
+                    }
+                );
+
+                if (response.status === 401) {
+                    endCall(false, "Sesión expirada");
+                    return;
+                }
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    for (const signal of data.signals || []) {
+                        lastSignal = Math.max(
+                            lastSignal,
+                            Number(signal.id)
+                        );
+
+                        await handleSignal(signal);
+                    }
+
+                    if (data.estado === "FI" || data.estado === "RE") {
+                        endCall(
+                            false,
+                            data.estado === "RE"
+                                ? "Llamada rechazada"
+                                : "Llamada finalizada"
+                        );
+                        return;
+                    }
+
+                    if (
+                        IS_CALLER &&
+                        !answered &&
+                        Date.now() - startedAt > 45000
+                    ) {
+                        endCall(true, "Sin respuesta");
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.warn("Error polling:", error);
+            } finally {
+                polling = false;
+            }
+        }
+
+        setTimeout(pollLoop, 500);
+    }
+
+    $btnMic.addEventListener("click", () => {
+        if (!localStream) return;
+
+        const track = localStream.getAudioTracks()[0];
+        if (!track) return;
+
+        track.enabled = !track.enabled;
+
+        $btnMic.classList.toggle("off", !track.enabled);
+        $btnMic.textContent = track.enabled ? "🎤" : "🔇";
+        $btnMic.title = track.enabled
+            ? "Silenciar micrófono"
+            : "Activar micrófono";
+    });
+
+    $btnCam.addEventListener("click", () => {
+        if (!localStream) return;
+
+        const track = localStream.getVideoTracks()[0];
+        if (!track) return;
+
+        track.enabled = !track.enabled;
+
+        $btnCam.classList.toggle("off", !track.enabled);
+        $btnCam.textContent = track.enabled ? "📷" : "🚫";
+        $btnCam.title = track.enabled
+            ? "Apagar cámara"
+            : "Encender cámara";
+
+        $local.classList.toggle("off", !track.enabled);
+    });
+
+    function videoSender() {
+        if (!pc) return null;
+
+        return pc.getSenders().find(
+            sender => sender.track?.kind === "video"
+        );
+    }
+
+    $btnFlip.addEventListener("click", async () => {
+        if (!localStream || !pc) return;
+
+        const oldTrack = localStream.getVideoTracks()[0];
+        if (!oldTrack) return;
+
+        const wasEnabled = oldTrack.enabled;
+        const next = facing === "user" ? "environment" : "user";
+
+        try {
+            oldTrack.stop();
+
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: { exact: next }
+                }
+            });
+
+            const newTrack = stream.getVideoTracks()[0];
+            newTrack.enabled = wasEnabled;
+
+            const sender = videoSender();
+
+            if (sender) {
+                await sender.replaceTrack(newTrack);
+            }
+
+            localStream.removeTrack(oldTrack);
+            localStream.addTrack(newTrack);
+
+            $local.srcObject = localStream;
+
+            facing = next;
+            $local.style.transform =
+                facing === "user" ? "scaleX(-1)" : "none";
+        } catch (error) {
+            console.error("Error cambiando cámara:", error);
+        }
+    });
+
+    function endCall(notify, message) {
+        if (ended) return;
+
+        ended = true;
+
+        if (notify) {
+            post(
+                `/api/calls/${CALL_ID}/state/`,
+                { estado: "FI" }
+            ).catch(() => {});
+        }
+
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+        }
+
+        if (pc) pc.close();
+
+        $face.classList.remove("hidden");
+        setState(message || "Llamada finalizada");
+
+        setTimeout(() => {
+            window.location.href = HOME_URL;
+        }, 1200);
+    }
+
+    document.getElementById("hang").addEventListener(
+        "click",
+        () => endCall(true, "Llamada finalizada")
+    );
+
+    window.addEventListener("beforeunload", () => {
+        if (!ended && navigator.sendBeacon) {
+            navigator.sendBeacon(
+                `/api/calls/${CALL_ID}/state/`,
+                new Blob(
+                    [JSON.stringify({ estado: "FI" })],
+                    { type: "application/json" }
+                )
+            );
+        }
+    });
+
+    startCall();
 </script>
-{% endblock %}
+```
+
 </body>
 </html>

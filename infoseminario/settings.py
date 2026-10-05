@@ -107,20 +107,21 @@ from firebase_admin import credentials
 
 FIREBASE_KEY_PATH = BASE_DIR / 'firebase-key.json'
 
-if not firebase_admin._apps:
-    if FIREBASE_KEY_PATH.exists():
-        # Uso Local
-        cred = credentials.Certificate(str(FIREBASE_KEY_PATH))
-        firebase_admin.initialize_app(cred)
-    elif os.environ.get('FIREBASE_CREDENTIALS_JSON'):
-        # Uso en Vercel (con limpieza de comillas y caracteres extra)
-        raw_json = os.environ.get('FIREBASE_CREDENTIALS_JSON', '').strip()
-        if (raw_json.startswith('"') and raw_json.endswith('"')) or (raw_json.startswith("'") and raw_json.endswith("'")):
-            raw_json = raw_json[1:-1]
-        
-        cred_dict = json.loads(raw_json)
-        cred = credentials.Certificate(cred_dict)
-        firebase_admin.initialize_app(cred)
+try:
+    if not firebase_admin._apps:
+        if FIREBASE_KEY_PATH.exists():
+            # Uso local
+            firebase_admin.initialize_app(credentials.Certificate(str(FIREBASE_KEY_PATH)))
+        elif os.environ.get('FIREBASE_CREDENTIALS_JSON'):
+            # Uso en Vercel (con limpieza de comillas externas)
+            raw_json = os.environ['FIREBASE_CREDENTIALS_JSON'].strip()
+            if len(raw_json) > 1 and raw_json[0] in '"\'' and raw_json[-1] == raw_json[0]:
+                raw_json = raw_json[1:-1]
+            firebase_admin.initialize_app(credentials.Certificate(json.loads(raw_json)))
+        else:
+            print("Firebase no inicializado: falta FIREBASE_CREDENTIALS_JSON")
+except Exception as e:
+    print(f"Firebase no inicializado: {e}")
 
 
 # Guardar la sesión directamente en cookies para no depender de la BD SQLite

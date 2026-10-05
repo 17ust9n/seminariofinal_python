@@ -7,13 +7,10 @@
     <title>{% block title %}Starssenger - Chat{% endblock %}</title>
 
     <!-- CSS principal -->
-    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=123">
+    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=124">
 
-    <!-- Librería Libsodium -->
-    <script src="https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.7.13/dist/browsers/sodium.js" async></script>
-
-    <!-- Librería externa RecordRTC -->
-    <script src="https://cdn.webrtc-experiment.com/RecordRTC.js"></script>
+    <!-- Libsodium (sin async, para que exista antes de usarlo) -->
+    <script src="https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.7.13/dist/browsers/sodium.js"></script>
 
     {% block extra_head %}{% endblock %}
 </head>
@@ -21,15 +18,12 @@
 
 <main class="wrap">
     <div id="chatScreen" class="screen on">
-        
-        <!-- HEADER UNIFICADO Y CORREGIDO -->
+
         <header class="chat-header">
-            
-            <!-- El botón con la redirección exacta a home -->
+
             <button class="back" onclick="window.location.href='{% url 'home' %}'" title="Volver" aria-label="Atrás">←</button>
-    
+
             {% if is_group %}
-            <!-- 👥 ÁREA CLICKEABLE EXCLUSIVA PARA GRUPOS: Redirige al template group -->
             <div class="header-click-area" onclick="window.location.href='{% url 'group_detail' conversation.id %}'" style="display: flex; align-items: center; gap: 12px; flex: 1; cursor: pointer;" title="Ver información del grupo">
                 <div class="av" id="chAv" style="background-color: #00ff88; color: #000;">👥</div>
                 <div class="chat-info">
@@ -38,7 +32,6 @@
                 </div>
             </div>
             {% else %}
-            <!-- 👤 FLUJO NORMAL PARA CONTACTOS INDIVIDUALES: No es clickeable -->
             <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
                 <div class="av" id="chAv">
                     {% if display_name %}{{ display_name|first|upper }}{% else %}U{% endif %}
@@ -49,8 +42,9 @@
                 </div>
             </div>
             {% endif %}
-            
-            <!-- Botones de llamadas unificados siempre visibles -->
+
+            {% if not is_group %}
+            <!-- Llamadas solo en chats individuales -->
             <div class="headbtns">
                 <button class="chat-call-btn voice" onclick="startCall('audio')" title="Llamada de voz" aria-label="Llamada de voz">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -65,21 +59,21 @@
                     </svg>
                 </button>
             </div>
+            {% endif %}
         </header>
 
-        <!-- Historial de Conversación -->
+        <!-- Historial de conversación -->
         <div id="chat" class="chat-body">
             {% for message in messages %}
                 <div data-id="{{ message.id }}" class="msg {% if message.sender == request.user %}my{% endif %}">
-                    
-                    <!-- 👤 CAMBIO 4: Si es grupo y el mensaje no es mío, mostrar el nombre del remitente -->
+
                     {% if is_group and message.sender != request.user %}
                         <div class="msg-sender" style="font-size: 11px; color: #00ff88; font-weight: bold; margin-bottom: 4px;">
                             {{ message.sender.username }}
                         </div>
                     {% endif %}
 
-                    {% if message.msg_type == 'audio' %}
+                    {% if message.msg_type == 'audio' and message.audio_file %}
                         <audio controls preload="auto" src="{{ message.audio_file.url }}"></audio>
                     {% else %}
                         <span class="encrypted-content">{{ message.content }}</span>
@@ -90,105 +84,76 @@
 
         <!-- Barra inferior de entrada -->
         <div id="bar" class="bar">
-            <!-- 👤 CAMBIO 5: Modificar placeholder del input según el tipo de chat -->
-            <input id="txt" placeholder="{% if is_group %}Mensaje grupal…{% else %}Mensaje cifrado…{% endif %}" oninput="toggleBarBtns()" onkeydown="if(event.key==='Enter')send()">
-            
+            <input id="txt" autocomplete="off" placeholder="{% if is_group %}Mensaje grupal…{% else %}Mensaje cifrado…{% endif %}" oninput="toggleBarBtns()" onkeydown="if(event.key==='Enter')send()">
+
             <button id="micBtn" class="action-btn" onclick="toggleRec()" title="Mensaje de voz" aria-label="Mensaje de voz">
                 <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
                     <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z"/>
                     <path d="M6 11a6 6 0 0 0 12 0h-1.6a4.4 4.4 0 0 1-8.8 0zM11.2 17.3V21h1.6v-3.7z"/>
                 </svg>
             </button>
-            
+
             <button id="sendBtn" class="action-btn send-btn" onclick="send()" style="display: none;">➤</button>
         </div>
     </div>
 </main>
 
-{% if not is_group %}
-<!-- Modal de Llamadas (Deshabilitado por completo en grupos) -->
-<div id="callModal" class="modal call-modal">
-    <div class="card call-card">
-        <h2 id="callTitle">Llamando...</h2>
-        <p id="callStatus" class="tag">Estableciendo conexión...</p>
-        <video id="localVideo" autoplay playsinline muted class="call-video" style="display: none;"></video>
-        <div class="mrow" style="justify-content: center; margin-top: 16px;">
-            <button class="btn btn-danger" onclick="endCall()">Finalizar</button>
-        </div>
-    </div>
-</div>
-{% endif %}
+<script src="{% static 'incoming.js' %}"></script>
 
 <script>
-let recorder = null;
-let isRecording = false;
-let callStream = null;
-
-// Control flag del lado de JS
 const IS_GROUP = {{ is_group|yesno:"true,false" }};
-const RECIPIENT_PUBKEY_BASE64 = "{{ recipient_public_key|default:'' }}";
+const CONVERSATION_ID = "{{ conversation.id|escapejs }}";
+const PEER_PHONE = "{{ peer_phone|default:''|escapejs }}";
+const RECIPIENT_PUBKEY_BASE64 = "{{ recipient_public_key|default:''|escapejs }}";
 
-document.addEventListener('DOMContentLoaded', async function() {
-    // Inicializar Libsodium
-    await sodium.ready;
+const chatEl = document.getElementById('chat');
+let lastId = 0;
+let sending = false;
 
-    // 👤 CONFIGURADO: Lee de forma segura los parámetros enviados desde newchat sin pisar grupos
-    const urlParams = new URLSearchParams(window.location.search);
-    const contactName = urlParams.get('name');
+document.addEventListener('DOMContentLoaded', async function () {
+    try { await sodium.ready; } catch (e) { console.error('Libsodium no cargó:', e); }
 
+    // Nombre enviado desde newchat (?name=...), sin pisar grupos
+    const contactName = new URLSearchParams(window.location.search).get('name');
     if (contactName && !IS_GROUP) {
         document.getElementById('chName').textContent = contactName;
         document.getElementById('chAv').textContent = contactName.charAt(0).toUpperCase();
     }
 
-    // Descifrar historial de mensajes
     decryptHistory();
 
-    const chat = document.getElementById('chat');
-    if (chat) {
-        chat.scrollTop = chat.scrollHeight;
-    }
+    // Último mensaje ya mostrado
+    document.querySelectorAll('#chat .msg[data-id]').forEach(el => {
+        lastId = Math.max(lastId, parseInt(el.dataset.id, 10) || 0);
+    });
+
+    scrollToBottom();
+    pollMessages();
 });
 
-function goBack() {
-    if (document.referrer) {
-        window.location.href = document.referrer;
-    } else {
-        window.history.back();
-    }
+function scrollToBottom() {
+    if (chatEl) chatEl.scrollTop = chatEl.scrollHeight;
 }
 
 function toggleBarBtns() {
-    const txtInput = document.getElementById('txt');
-    const micBtn = document.getElementById('micBtn');
-    const sendBtn = document.getElementById('sendBtn');
-
-    if (txtInput.value.trim().length > 0) {
-        micBtn.style.display = 'none';
-        sendBtn.style.display = 'flex';
-    } else {
-        micBtn.style.display = 'block';
-        sendBtn.style.display = 'none';
-    }
+    const hasText = document.getElementById('txt').value.trim().length > 0;
+    document.getElementById('micBtn').style.display = hasText ? 'none' : 'block';
+    document.getElementById('sendBtn').style.display = hasText ? 'flex' : 'none';
 }
 
-/**
- * Cifra un texto utilizando Libsodium
- */
+/* ---------- Cifrado ---------- */
+
 function encryptText(plainText) {
-    if (IS_GROUP) {
-        console.warn("Cifrado asimétrico individual omitido por flujo de grupo.");
-        return plainText; 
-    }
+    if (IS_GROUP) return plainText; // cifrado de grupo todavía no implementado
 
     if (!RECIPIENT_PUBKEY_BASE64) {
-        console.warn("No hay clave pública del receptor. El mensaje se enviará sin cifrar.");
+        console.warn('No hay clave pública del receptor. El mensaje se envía sin cifrar.');
         return plainText;
     }
 
     const myPrivateKeyBase64 = localStorage.getItem('sodium_private_key');
     if (!myPrivateKeyBase64) {
-        console.error("No se encontró la clave privada local.");
+        console.error('No se encontró la clave privada local.');
         return plainText;
     }
 
@@ -198,51 +163,137 @@ function encryptText(plainText) {
     const nonce = sodium.randombytes_buf(sodium.crypto_box_NONCEBYTES);
     const ciphertext = sodium.crypto_box_easy(plainText, nonce, recipientPubKey, myPrivateKey);
 
-    const nonceB64 = sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL);
-    const ciphertextB64 = sodium.to_base64(ciphertext, sodium.base64_variants.ORIGINAL);
-
-    return `${nonceB64}:${ciphertextB64}`;
+    return sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL) + ':' +
+           sodium.to_base64(ciphertext, sodium.base64_variants.ORIGINAL);
 }
 
-/**
- * Descifra un mensaje
- */
-function decryptText(encryptedPayload) {
-    if (IS_GROUP) {
-        return encryptedPayload; 
-    }
-
-    if (!encryptedPayload.includes(':')) {
-        return encryptedPayload; 
-    }
+// Sirve para mensajes propios y ajenos: el secreto compartido es el mismo en ambos sentidos.
+function decryptText(payload) {
+    if (IS_GROUP || !payload || !payload.includes(':')) return payload;
 
     try {
         const myPrivateKeyBase64 = localStorage.getItem('sodium_private_key');
-        if (!myPrivateKeyBase64 || !RECIPIENT_PUBKEY_BASE64) return encryptedPayload;
+        if (!myPrivateKeyBase64 || !RECIPIENT_PUBKEY_BASE64) return payload;
 
         const myPrivateKey = sodium.from_base64(myPrivateKeyBase64, sodium.base64_variants.ORIGINAL);
-        const recipientPubKey = sodium.from_base64(RECIPIENT_PUBKEY_BASE64, sodium.base64_variants.ORIGINAL);
+        const otherPubKey = sodium.from_base64(RECIPIENT_PUBKEY_BASE64, sodium.base64_variants.ORIGINAL);
 
-        const parts = encryptedPayload.split(':');
+        const parts = payload.split(':');
         const nonce = sodium.from_base64(parts[0], sodium.base64_variants.ORIGINAL);
         const ciphertext = sodium.from_base64(parts[1], sodium.base64_variants.ORIGINAL);
 
-        const decrypted = sodium.crypto_box_open_easy(ciphertext, nonce, recipientPubKey, myPrivateKey);
-        return sodium.to_string(decrypted);
+        return sodium.to_string(sodium.crypto_box_open_easy(ciphertext, nonce, otherPubKey, myPrivateKey));
     } catch (e) {
-        console.error("Error al descifrar mensaje:", e);
-        return "[Mensaje cifrado no se pudo descifrar]";
+        console.error('Error al descifrar mensaje:', e);
+        return '[Mensaje cifrado no se pudo descifrar]';
     }
 }
 
-/**
- * Recorre e inicializa el descifrado del historial de chat en el DOM
- */
 function decryptHistory() {
     document.querySelectorAll('.encrypted-content').forEach(span => {
-        const rawContent = span.textContent.trim();
-        span.textContent = decryptText(rawContent);
+        span.textContent = decryptText(span.textContent.trim());
     });
+}
+
+/* ---------- Mensajes ---------- */
+
+function addMessage({ id, text, mine, sender }) {
+    const div = document.createElement('div');
+    div.className = 'msg' + (mine ? ' my' : '');
+    if (id) div.dataset.id = id;
+
+    if (IS_GROUP && !mine && sender) {
+        const s = document.createElement('div');
+        s.className = 'msg-sender';
+        s.style.cssText = 'font-size: 11px; color: #00ff88; font-weight: bold; margin-bottom: 4px;';
+        s.textContent = sender;
+        div.appendChild(s);
+    }
+
+    const span = document.createElement('span');
+    span.className = 'encrypted-content';
+    span.textContent = text; // textContent evita inyección de HTML
+    div.appendChild(span);
+
+    chatEl.appendChild(div);
+    scrollToBottom();
+}
+
+async function send() {
+    if (sending) return;
+    const input = document.getElementById('txt');
+    const plain = input.value.trim();
+    if (!plain) return;
+
+    sending = true;
+    try {
+        const r = await fetch('/api/send-message/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ conversation_id: CONVERSATION_ID, content: encryptText(plain) })
+        });
+
+        if (r.status === 401) { window.location.href = '/'; return; }
+        const data = await r.json();
+
+        if (data.status === 'success') {
+            addMessage({ id: data.message_id, text: plain, mine: true });
+            input.value = '';
+            toggleBarBtns();
+        } else {
+            alert(data.message || 'No se pudo enviar el mensaje.');
+        }
+    } catch (e) {
+        alert('Error de conexión. Intentá de nuevo.');
+    } finally {
+        sending = false;
+    }
+}
+
+// Recibe mensajes nuevos de la otra persona (consulta cada 2 s)
+async function pollMessages() {
+    try {
+        if (!document.hidden) {
+            const r = await fetch(`/api/messages/${CONVERSATION_ID}/?after=${lastId}`, { credentials: 'same-origin' });
+            if (r.ok) {
+                const data = await r.json();
+                for (const m of (data.messages || [])) {
+                    lastId = Math.max(lastId, m.id);
+                    if (m.msg_type === 'audio') continue;
+                    addMessage({ id: m.id, text: decryptText(m.content), mine: false, sender: m.sender });
+                }
+            }
+        }
+    } catch (e) { /* reintenta en el próximo ciclo */ }
+    setTimeout(pollMessages, 2000);
+}
+
+/* ---------- Mensajes de voz ---------- */
+
+function toggleRec() {
+    // El servidor todavía no guarda audios (no hay endpoint de subida ni almacenamiento persistente en Vercel).
+    alert('Los mensajes de voz todavía no están disponibles.');
+}
+
+/* ---------- Llamadas ---------- */
+
+async function startCall(mode) {
+    if (!PEER_PHONE) { alert('No se puede llamar a este chat.'); return; }
+    try {
+        const r = await fetch('/api/calls/start/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: PEER_PHONE, tipo: mode === 'video' ? 'VI' : 'VO' })
+        });
+        if (r.status === 401) { window.location.href = '/'; return; }
+        const data = await r.json();
+        if (data.status === 'success') window.location.href = `/call/${data.call_id}/`;
+        else alert(data.message || 'No se pudo iniciar la llamada.');
+    } catch (e) {
+        alert('Error de conexión.');
+    }
 }
 </script>
 </body>

@@ -1,0 +1,137 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starssenger - Registro de llamadas</title>
+    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=125">
+
+    <style>
+        .call-history-list{display:flex;flex-direction:column;gap:10px;}
+        .call-item{display:flex;align-items:center;gap:12px;padding:14px;background:var(--navy2);border:1px solid var(--line);border-radius:10px;}
+        .call-avatar{width:42px;height:42px;min-width:42px;border-radius:50%;background:var(--green);color:#000;display:flex;align-items:center;justify-content:center;font-size:20px;}
+        .call-info{flex:1;min-width:0;}
+        .call-user{color:#fff;font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .call-phone{color:var(--mut);font-size:11px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .call-date{color:var(--mut);font-size:12px;margin-top:4px;}
+        .call-type{color:var(--green);font-size:11px;margin-top:3px;}
+        .call-delete{width:38px;height:38px;border:none;border-radius:50%;background:var(--red);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px;}
+        .call-delete:hover{background:#dc2626;}
+        .empty-history{text-align:center;color:var(--mut);padding:40px 20px;font-size:14px;}
+        .call-message{background:var(--green);color:#000;padding:10px 14px;border-radius:8px;margin-bottom:10px;text-align:center;font-size:13px;font-weight:600;}
+    </style>
+</head>
+
+<body>
+
+<div class="wrap">
+    <div class="screen on">
+
+        <div class="toolbar" style="display:flex;align-items:center;gap:12px;">
+            <button onclick="history.back()" style="background:none;border:none;color:#fff;font-size:24px;cursor:pointer;">
+                ←
+            </button>
+            <span>Registro de llamadas</span>
+        </div>
+
+        <div class="scroll-content">
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="call-message">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+
+            {% if calls %}
+
+                <div class="call-history-list">
+
+                    {% for llamada in calls %}
+
+                        <div class="call-item">
+
+                            <div class="call-avatar">
+                                {% if llamada.tipo == "VI" %}
+                                    🎥
+                                {% else %}
+                                    📞
+                                {% endif %}
+                            </div>
+
+                            <div class="call-info">
+
+                                <div class="call-user">
+                                    {{ llamada.contact_name }}
+                                </div>
+
+                                <div class="call-phone">
+                                    {{ llamada.contact_phone }}
+                                </div>
+
+                                <div class="call-date">
+                                    {{ llamada.fecha_inicio|date:"d/m/Y · H:i" }}
+                                </div>
+
+                                <div class="call-type">
+
+                                    {% if llamada.emisor == user %}
+
+                                        {% if llamada.tipo == "VI" %}
+                                            Videollamada realizada
+                                        {% else %}
+                                            Llamada de voz realizada
+                                        {% endif %}
+
+                                    {% else %}
+
+                                        {% if llamada.tipo == "VI" %}
+                                            Videollamada recibida
+                                        {% else %}
+                                            Llamada de voz recibida
+                                        {% endif %}
+
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+
+                            <form method="POST"
+                                  action="{% url 'delete_call_history' llamada.id %}"
+                                  onsubmit="return confirm('¿Querés eliminar esta llamada del registro?');">
+
+                                {% csrf_token %}
+
+                                <button type="submit"
+                                        class="call-delete"
+                                        title="Eliminar llamada">
+                                    🗑️
+                                </button>
+
+                            </form>
+
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+            {% else %}
+
+                <div class="empty-history">
+                    <div style="font-size:40px;margin-bottom:12px;">📞</div>
+                    <div>No hay llamadas registradas.</div>
+                </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+</div>
+
+<script src="{% static 'incoming.js' %}"></script>
+
+</body>
+</html>

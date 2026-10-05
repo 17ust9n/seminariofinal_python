@@ -1,155 +1,148 @@
 {% load static %}
+
 <!DOCTYPE html>
+
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Starssenger - Perfil{% endblock %}</title>
 
-    <!-- CSS principal -->
-    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=125">
+<link rel="stylesheet" href="{% static 'estilos.css' %}?v=125">
+<script src="{% static 'js/sodium.js' %}"></script>
 
-    <!-- Cargamos Libsodium de forma local y estable desde tu Django -->
-    <script src="{% static 'js/sodium.js' %}"></script>
+{% block extra_head %}{% endblock %}
 
-    {% block extra_head %}{% endblock %}
 </head>
 <body>
 
 <div class="wrap">
     <div id="profile-view" class="screen on">
-        
-        <!-- Encabezado / Toolbar -->
-        <div class="toolbar">Perfil</div>
 
-        <!-- Contenido Scrollable -->
-        <div class="scroll-content">
+    <div class="toolbar">Perfil</div>
 
-            <!-- Imagen de Perfil -->
-            <div class="profile-picture">
-                <svg viewBox="0 0 24 24">
-                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                </svg>
-            </div>
+    <div class="scroll-content">
 
-            <!-- 🛠️ NOMBRE DE USUARIO / TELÉFONO DINÁMICO -->
-            <!-- Agregamos IDs y estilos de bloque apilados para jerarquizar el nombre sobre el número -->
-            <div id="user-profile-header" style="text-align: center; margin-bottom: 20px;">
-                <div id="user-display-name" class="user-name" style="font-size: 20px; font-weight: 600; color: #fff;">
-                    {{ user_phone }}
-                </div>
-                <div id="user-display-phone" style="font-size: 14px; color: #888; margin-top: 4px;">
-                    <!-- Se completará mediante JavaScript si está en LocalStorage -->
-                </div>
-            </div>
-
-            <!-- Modo de Seguridad y Clave Pública (Toca para copiar) -->
-            <div class="user-info-box" id="infoBox" data-full-key="{{ pub_key_full }}">
-                <div>{{ sec_label }}</div>
-                <div style="margin-top: 4px;">Clave Pública (Toca para copiar):</div>
-                <div class="key-code"/>{{ pub_key_short }}</div>
-            </div>
-
-            <!-- Separador -->
-            <div class="divider"></div>
-
-            <!-- Botón Editar Perfil -->
-            <a href="{% url 'edit_profile' %}" class="btn-action">
-                ✏️ Editar Perfil
-            </a>
-
-            <!-- Botón Ajustes -->
-            <a href="{% url 'settings' %}" class="btn-action">
-                ⚙️ Ajustes y Seguridad
-            </a>
-
-            <!-- Botón Acerca -->
-            <a href="{% url 'about' %}" class="btn-action">
-                ℹ️ Acerca de Starssenger
-            </a>
-
-            <!-- Botón Términos y Condiciones -->
-            <a href="{% url 'terms' %}" class="btn-action">
-                📜 Términos y Condiciones
-            </a>
-
-            <!-- Botón Cerrar Sesión -->
-            <a href="{% url 'logout' %}" class="btn-action btn-danger" id="btnLogout">
-                Cerrar Sesión 🔒
-            </a>
-
+        <div class="profile-picture">
+            <svg viewBox="0 0 24 24">
+                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+            </svg>
         </div>
 
-        <!-- Navegación Inferior -->
-        <nav class="bottom-nav">
-            <a href="{% url 'home' %}" class="nav-item">
-                <svg viewBox="0 0 24 24">
-                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-                </svg>
-                Inicio
-            </a>
-            <a href="{% url 'profile' %}" class="nav-item active">
-                <svg viewBox="0 0 24 24">
-                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                </svg>
-                Perfil
-            </a>
-        </nav>
+        <div id="user-profile-header" style="text-align:center;margin-bottom:20px;">
+            <div id="user-display-name" class="user-name" style="font-size:20px;font-weight:600;color:#fff;">
+                {{ user_phone }}
+            </div>
+            <div id="user-display-phone" style="font-size:14px;color:#888;margin-top:4px;"></div>
+        </div>
 
-        <!-- Toast Component -->
-        <div id="toast" class="toast">¡Clave pública copiada al portapapeles! 📋</div>
+        <div class="user-info-box" id="infoBox" data-full-key="{{ pub_key_full }}">
+            <div>{{ sec_label }}</div>
+            <div style="margin-top:4px;">Clave Pública (Toca para copiar):</div>
+            <div class="key-code">{{ pub_key_short }}</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <a href="{% url 'edit_profile' %}" class="btn-action">
+            ✏️ Editar Perfil
+        </a>
+
+        <a href="{% url 'settings' %}" class="btn-action">
+            ⚙️ Ajustes y Seguridad
+        </a>
+
+        <a href="{% url 'call_history' %}" class="btn-action">
+            📞 Registro de llamadas
+        </a>
+
+        <a href="{% url 'about' %}" class="btn-action">
+            ℹ️ Acerca de Starssenger
+        </a>
+
+        <a href="{% url 'terms' %}" class="btn-action">
+            📜 Términos y Condiciones
+        </a>
+
+        <a href="{% url 'logout' %}" class="btn-action btn-danger" id="btnLogout">
+            Cerrar Sesión 🔒
+        </a>
 
     </div>
+
+    <nav class="bottom-nav">
+        <a href="{% url 'home' %}" class="nav-item">
+            <svg viewBox="0 0 24 24">
+                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+            </svg>
+            Inicio
+        </a>
+
+        <a href="{% url 'profile' %}" class="nav-item active">
+            <svg viewBox="0 0 24 24">
+                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+            </svg>
+            Perfil
+        </a>
+    </nav>
+
+    <div id="toast" class="toast">
+        ¡Clave pública copiada al portapapeles! 📋
+    </div>
+
+</div>
+```
+
 </div>
 
+<script src="{% static 'incoming.js' %}"></script>
+
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const infoBox = document.getElementById('infoBox');
-        const toast = document.getElementById('toast');
-        const btnLogout = document.getElementById('btnLogout');
+document.addEventListener('DOMContentLoaded',()=>{
+    const infoBox=document.getElementById('infoBox');
+    const toast=document.getElementById('toast');
+    const btnLogout=document.getElementById('btnLogout');
 
-        // === 🛠️ LECTURA DINÁMICA DEL NOMBRE DESDE LOCALSTORAGE ===
-        const localName = localStorage.getItem('sp_name');
-        const localPhone = localStorage.getItem('sp_me');
-        const nameElement = document.getElementById('user-display-name');
-        const phoneElement = document.getElementById('user-display-phone');
+    const localName=localStorage.getItem('sp_name');
+    const localPhone=localStorage.getItem('sp_me');
+    const nameElement=document.getElementById('user-display-name');
+    const phoneElement=document.getElementById('user-display-phone');
 
-        // Si existe un nombre guardado localmente, lo priorizamos arriba y bajamos el número
-        if (localName && nameElement) {
-            nameElement.textContent = localName;
-            if (localPhone && phoneElement) {
-                phoneElement.textContent = `+${localPhone}`;
-            }
-        } else if (localPhone && nameElement) {
-            // Backup por si no encuentra el alias por alguna razón externa
-            nameElement.textContent = `+${localPhone}`;
+    if(localName&&nameElement){
+        nameElement.textContent=localName;
+        if(localPhone&&phoneElement){
+            phoneElement.textContent=`+${localPhone}`;
         }
+    }else if(localPhone&&nameElement){
+        nameElement.textContent=`+${localPhone}`;
+    }
 
-        // 1. Copiar clave pública al portapapeles
-        infoBox.addEventListener('click', () => {
-            const fullKey = infoBox.getAttribute('data-full-key');
-            if (fullKey && fullKey !== 'No disponible') {
-                navigator.clipboard.writeText(fullKey).then(() => {
-                    showToast();
-                }).catch(err => {
-                    console.error('Error al copiar la clave: ', err);
-                });
-            }
-        });
+    infoBox.addEventListener('click',()=>{
+        const fullKey=infoBox.getAttribute('data-full-key');
 
-        // 2. Limpieza de LocalStorage al cerrar sesión (Simula logoutUser de Android)
-        btnLogout.addEventListener('click', () => {
-            localStorage.clear();
-            sessionStorage.clear();
-        });
-
-        function showToast() {
-            toast.classList.add("show");
-            setTimeout(() => { 
-                toast.classList.remove("show"); 
-            }, 3000);
+        if(fullKey&&fullKey!=='No disponible'){
+            navigator.clipboard.writeText(fullKey).then(()=>{
+                showToast();
+            }).catch(err=>{
+                console.error('Error al copiar la clave:',err);
+            });
         }
     });
+
+    btnLogout.addEventListener('click',()=>{
+        localStorage.clear();
+        sessionStorage.clear();
+    });
+
+    function showToast(){
+        toast.classList.add("show");
+
+        setTimeout(()=>{
+            toast.classList.remove("show");
+        },3000);
+    }
+});
 </script>
+
 </body>
 </html>

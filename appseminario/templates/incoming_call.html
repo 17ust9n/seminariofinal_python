@@ -1,0 +1,62 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starssenger - Llamadas</title>
+    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=125">
+</head>
+<body>
+<div id="incall" style="display:none;position:fixed;top:0;left:0;right:0;padding:12px;background:#12304f;color:#fff;z-index:99;">
+  <b id="icName">Llamada entrante...</b>
+  <button id="btnDecline" class="btn dec">Rechazar</button>
+  <button id="btnAnswer" class="btn acc">Contestar</button>
+</div>
+
+<script>
+(function () {
+  let currentCall = null;
+  const banner = document.getElementById('incall');
+
+  async function post(path, body) {
+    const r = await fetch(path, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    return r.json();
+  }
+
+  async function checkIncoming() {
+    try {
+      if (!document.hidden) {
+        const r = await fetch('/api/calls/pending/', { credentials: 'same-origin' });
+        if (r.ok) {
+          const data = await r.json();
+          currentCall = data.call;
+          if (currentCall) {
+            document.getElementById('icName').textContent =
+              (currentCall.tipo === 'VI' ? 'Videollamada de ' : 'Llamada de ') + currentCall.name;
+            banner.style.display = 'block';
+          } else {
+            banner.style.display = 'none';
+          }
+        }
+      }
+    } catch (e) {}
+    setTimeout(checkIncoming, 2000);
+  }
+  checkIncoming();
+
+  document.getElementById('btnAnswer').addEventListener('click', () => {
+    if (currentCall) window.location.href = '/call/' + currentCall.id + '/';
+  });
+  document.getElementById('btnDecline').addEventListener('click', async () => {
+    if (currentCall) await post('/api/calls/' + currentCall.id + '/state/', { estado: 'RE' });
+    banner.style.display = 'none';
+  });
+})();
+</script>
+</body>
+</html>

@@ -109,3 +109,14 @@ class Llamada(models.Model):
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
         UserProfile.objects.get_or_create(user=instance)
+
+
+class CallSignal(models.Model):
+    KINDS = (('offer', 'Offer'), ('answer', 'Answer'), ('ice', 'ICE'))
+
+    llamada = models.ForeignKey(Llamada, on_delete=models.CASCADE, related_name='signals')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='signals_sent')
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='signals_received')
+    kind = models.CharField(max_length=10, choices=KINDS)
+    payload = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)

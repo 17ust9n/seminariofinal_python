@@ -1,16 +1,20 @@
 import json
 import traceback
+from datetime import timedelta
+from django.core.serializers import python
 from django.db.models import Q
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse
+from django.http import JsonResponse, request
 from django.views.decorators.cache import never_cache
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import User
+from django.contrib import messages
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.urls import reverse
+from django.utils import timezone
 
-from .models import UserProfile, Conversation, Message, Contact, Llamada
+from .models import UserProfile, CallSignal, Conversation, Message, Contact, Llamada
 
 
 def search_users_api(request):
@@ -142,6 +146,7 @@ def chat_detail(request, room_id=None, username=None):
         'display_name': display_name,
         'recipient_public_key': contacto_pub_key,  
         'is_group': conversation.is_group,
+        'peer_phone': other_participant.username if (other_participant and not conversation.is_group) else '',
     })
 
 
@@ -218,21 +223,6 @@ def call(request):
     ).order_by('-fecha_inicio')[:20]
 
     return render(request, 'call.html', {'recent_calls': recent_calls})
-
-
-def call_room(request, room_id):
-    """
-    Renderiza la sala interactiva de llamada (Voz o Video WebRTC).
-    """
-    if not request.user.is_authenticated:
-        return redirect('onboard')
-        
-    # 🛠️ CORREGIDO: Cierre de render y empaquetado de variables
-    llamada = get_object_or_404(Llamada, id=room_id)
-    return render(request, 'call_room.html', {
-        'room_id': room_id,
-        'llamada': llamada
-    })
 
 
 def profile(request):
@@ -641,3 +631,225 @@ def delete_group_api(request, group_id):
 def logout_view(request):
     logout(request)
     return redirect('onboard')
+
+
+
+
+def _call_peer(llamada, user):
+    if llamada.emisor_id == user.id:
+        return llamada.receptor_principal
+    if llamada.receptor_principal_id == user.id:
+        return llamada.emisor
+    return None
+
+
+@csrf_exempt
+@require_POST
+def start_call_api(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'status': 'error', 'message': 'Sesión expirada.'}, status=401)
+
+    data = json.loads(request.body)
+    phone = ''.join(filter(str.isdigit, str(data.get('phone', ''))))
+    target = User.objects.filter(username=phone).first()
+
+    if not target or target.id == request.user.id:
+        return JsonResponse({'status': 'error', 'message': 'Destinatario inválido.'}, status=400)
+
+    tipo = 'VI' if data.get('tipo') == 'VI' else 'VO'
+    llamada = Llamada.objects.create(
+        emisor=request.user,
+        receptor_principal=target,
+        tipo=tipo
+    )
+
+    return JsonResponse({'status': 'success', 'call_id': llamada.id})
+
+
+def pending_call_api(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'status': 'error', 'message': 'Sesión expirada.'}, status=401)
+
+    limite = timezone.now() - timedelta(seconds=45)
+
+    llamada = Llamada.objects.filter(
+        receptor_principal=request.user,
+        estado='PE',
+        fecha_inicio__gte=limite
+    ).order_by('-fecha_inicio').first()
+
+    if not llamada:
+        return JsonResponse({'status': 'success', 'call': None})
+
+    contacto = Contact.objects.filter(
+        user=request.user,
+        phone_number=llamada.emisor.username
+    ).first()
+
+    return JsonResponse({
+        'status': 'success',
+        'call': {
+            'id': llamada.id,
+            'from': llamada.emisor.username,
+            'name': contacto.name if contacto else llamada.emisor.username,
+            'tipo': llamada.tipo,
+        }
+    })
+
+
+@csrf_exempt
+@require_POST
+def call_signal_api(request, call_id):
+    if not request.user.is_authenticated:
+        return JsonResponse({'status': 'error', 'message': 'Sesión expirada.'}, status=401)
+
+    llamada = get_object_or_404(Llamada, id=call_id)
+    peer = _call_peer(llamada, request.user)
+
+    if not peer:
+        return JsonResponse({'status': 'error', 'message': 'No autorizado.'}, status=403)
+
+    data = json.loads(request.body)
+    kind = data.get('kind')
+
+    if kind not in ('offer', 'answer', 'ice'):
+        return JsonResponse({'status': 'error', 'message': 'Tipo inválido.'}, status=400)
+
+    CallSignal.objects.create(
+        llamada=llamada,
+        sender=request.user,
+        receiver=peer,
+        kind=kind,
+        payload=json.dumps(data.get('payload'))
+    )
+
+    return JsonResponse({'status': 'success'})
+
+
+def call_signals_api(request, call_id):
+    if not request.user.is_authenticated:
+        return JsonResponse({'status': 'error', 'message': 'Sesión expirada.'}, status=401)
+
+    llamada = get_object_or_404(Llamada, id=call_id)
+
+    if not _call_peer(llamada, request.user):
+        return JsonResponse({'status': 'error', 'message': 'No autorizado.'}, status=403)
+
+    after = int(request.GET.get('after', 0) or 0)
+
+    signals = CallSignal.objects.filter(
+        llamada=llamada,
+        receiver=request.user,
+        id__gt=after
+    ).order_by('id')
+
+    return JsonResponse({
+        'status': 'success',
+        'estado': llamada.estado,
+        'signals': [
+            {
+                'id': s.id,
+                'kind': s.kind,
+                'payload': json.loads(s.payload)
+            }
+            for s in signals
+        ]
+    })
+
+
+def call_room(request, room_id):
+    if not request.user.is_authenticated:
+        return redirect('onboard')
+
+    llamada = get_object_or_404(Llamada, id=room_id)
+
+    if llamada.emisor_id != request.user.id and llamada.receptor_principal_id != request.user.id:
+        return redirect('home')
+
+    is_caller = llamada.emisor_id == request.user.id
+    peer = _call_peer(llamada, request.user)
+    peer_name = peer.username if peer else 'Contacto'
+
+    if peer:
+        contacto = Contact.objects.filter(
+            user=request.user,
+            phone_number=peer.username
+        ).first()
+
+        if contacto and contacto.name:
+            peer_name = contacto.name
+
+    return render(request, 'call_room.html', {
+        'room_id': room_id,
+        'llamada': llamada,
+        'is_caller': is_caller,
+        'peer_name': peer_name,
+    })
+
+
+def call_history(request):
+    if not request.user.is_authenticated:
+        return redirect("onboard")
+
+    calls = Llamada.objects.filter(
+        Q(emisor=request.user) | Q(receptor_principal=request.user)
+    ).select_related(
+        "emisor", "receptor_principal"
+    ).order_by("-fecha_inicio")
+
+    for llamada in calls:
+        contacto_user = (
+            llamada.receptor_principal
+            if llamada.emisor == request.user
+            else llamada.emisor
+        )
+
+        llamada.contact_phone = contacto_user.username if contacto_user else ""
+        llamada.contact_name = contacto_user.username if contacto_user else "Usuario"
+
+        if contacto_user:
+            contacto = Contact.objects.filter(
+                user=request.user,
+                phone_number=contacto_user.username
+            ).first()
+
+            if contacto and contacto.name:
+                llamada.contact_name = contacto.name
+
+    return render(request, "call_history.html", {"calls": calls})
+
+
+@require_POST
+def delete_call_history(request, call_id):
+    if not request.user.is_authenticated:
+        return redirect("onboard")
+
+    llamada = get_object_or_404(Llamada, id=call_id)
+
+    if llamada.emisor == request.user or llamada.receptor_principal == request.user:
+        llamada.delete()
+        messages.success(request, "Llamada eliminada correctamente")
+
+    return redirect("call_history")
+
+
+@csrf_exempt
+@require_POST
+def call_state_api(request, call_id):
+    if not request.user.is_authenticated:
+        return JsonResponse({'status': 'error', 'message': 'Sesión expirada.'}, status=401)
+
+    llamada = get_object_or_404(Llamada, id=call_id)
+
+    if not _call_peer(llamada, request.user):
+        return JsonResponse({'status': 'error', 'message': 'No autorizado.'}, status=403)
+
+    estado = json.loads(request.body).get('estado')
+
+    if estado not in ('CO', 'RE', 'FI'):
+        return JsonResponse({'status': 'error', 'message': 'Estado inválido.'}, status=400)
+
+    llamada.estado = estado
+    llamada.save()
+
+    return JsonResponse({'status': 'success'})

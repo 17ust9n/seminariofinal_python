@@ -31,3 +31,4 @@ env/
 firebase-key.json
 *.json
 .vercel
+.env*

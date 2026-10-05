@@ -1,0 +1,322 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Starssenger - Llamada</title>
+<link rel="stylesheet" href="{% static 'estilos.css' %}?v=125">
+<style>
+.call-screen{position:relative;width:100%;height:100vh;overflow:hidden;background:#000}
+#remoteVideo{width:100%;height:100%;object-fit:cover;background:#111}
+#localVideo{position:absolute;top:18px;right:18px;width:110px;height:155px;object-fit:cover;border-radius:14px;border:2px solid #21C36F;background:#222;z-index:3}
+#remoteAudio{display:none}
+.call-info{position:absolute;top:18px;left:18px;z-index:5;color:#fff;text-shadow:0 1px 4px #000}
+.call-name{font-size:18px;font-weight:600}
+.call-state{font-size:13px;margin-top:3px}
+.call-actions{position:absolute;bottom:25px;left:50%;transform:translateX(-50%);display:flex;gap:12px;z-index:5}
+.call-actions button{border:0;border-radius:50%;width:55px;height:55px;background:#12314E;color:#fff;font-size:20px;cursor:pointer}
+.call-actions button.off{background:#555}
+.call-actions .hang{background:#c0392b;width:62px;height:62px}
+</style>
+</head>
+
+<body>
+<div id="call" class="screen call-screen on">
+    <video id="remoteVideo" autoplay playsinline></video>
+    <video id="localVideo" autoplay muted playsinline></video>
+    <audio id="remoteAudio" autoplay></audio>
+
+    <div class="call-info">
+        <div class="call-name">{{ peer_name }}</div>
+        <div id="callState" class="call-state">Iniciando cámara...</div>
+    </div>
+
+    <div class="call-actions">
+        <button id="mic" title="Micrófono">🎙️</button>
+        <button id="cam" title="Cámara">📹</button>
+        <button id="flip" title="Cambiar cámara">🔄</button>
+        <button id="hang" class="hang" title="Colgar">📞</button>
+    </div>
+</div>
+
+<script>
+const CALL_ID="{{ room_id|escapejs }}",
+IS_CALLER={{ is_caller|yesno:"true,false" }},
+HOME_URL="{% url 'call' %}",
+ICE_SERVERS=[{urls:"stun:stun.l.google.com:19302"}];
+
+let pc=null,localStream=null,remoteStream=new MediaStream(),
+lastSignal=0,ended=false,polling=false,pendingIce=[],facingMode="user";
+
+const $=id=>document.getElementById(id),
+remoteVideo=$("remoteVideo"),localVideo=$("localVideo"),
+remoteAudio=$("remoteAudio"),state=$("callState");
+
+function setState(t){state.textContent=t}
+
+async function sendSignal(kind,payload){
+    const r=await fetch(`/api/calls/${CALL_ID}/signal/`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({kind,payload})
+    });
+    if(!r.ok)throw new Error("No se pudo enviar señal");
+}
+
+async function getSignals(){
+    try{
+        const r=await fetch(`/api/calls/${CALL_ID}/signals/?after=${lastSignal}`);
+        if(!r.ok)return[];
+        const data=await r.json();
+        return data.signals||[];
+    }catch(e){
+        console.error("Signals:",e);
+        return[];
+    }
+}
+
+function addIce(c){
+    if(!c)return;
+    if(pc.remoteDescription)
+        pc.addIceCandidate(c).catch(e=>console.error("ICE:",e));
+    else
+        pendingIce.push(c);
+}
+
+async function flushIce(){
+    for(const c of pendingIce)
+        await pc.addIceCandidate(c).catch(()=>{});
+    pendingIce=[];
+}
+
+async function handleSignal(s){
+    lastSignal=Math.max(lastSignal,Number(s.id||0));
+    const p=s.payload;
+    if(!p)return;
+
+    try{
+        if(s.kind==="offer"&&!IS_CALLER){
+            setState("Recibiendo llamada...");
+            await pc.setRemoteDescription(p);
+            await flushIce();
+
+            const answer=await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+
+            await sendSignal("answer",{
+                type:answer.type,
+                sdp:answer.sdp
+            });
+
+            setState("Conectando...");
+        }
+
+        else if(s.kind==="answer"&&IS_CALLER){
+            await pc.setRemoteDescription(p);
+            await flushIce();
+            setState("Conectando...");
+        }
+
+        else if(s.kind==="ice"&&p.candidate){
+            addIce(p);
+        }
+    }catch(e){
+        console.error("WebRTC:",e);
+        setState("Error WebRTC");
+    }
+}
+
+async function poll(){
+    if(polling)return;
+    polling=true;
+
+    while(!ended){
+        const signals=await getSignals();
+
+        for(const s of signals)
+            await handleSignal(s);
+
+        await new Promise(r=>setTimeout(r,500));
+    }
+}
+
+async function startCall(){
+    try{
+        setState("Solicitando cámara...");
+
+        localStream=await navigator.mediaDevices.getUserMedia({
+            audio:true,
+            video:{facingMode}
+        });
+
+        localVideo.srcObject=localStream;
+        await localVideo.play().catch(()=>{});
+
+        setState(IS_CALLER?"Llamando...":"Esperando llamada...");
+
+    }catch(e){
+        console.error("getUserMedia:",e);
+
+        try{
+            localStream=await navigator.mediaDevices.getUserMedia({audio:true});
+            localVideo.srcObject=localStream;
+            setState("Cámara no disponible");
+        }catch(e2){
+            console.error("Media:",e2);
+            setState("No se pudo acceder a cámara/micrófono");
+            return;
+        }
+    }
+
+    pc=new RTCPeerConnection({iceServers:ICE_SERVERS});
+
+    localStream.getTracks().forEach(track=>{
+        pc.addTrack(track,localStream);
+    });
+
+    pc.ontrack=e=>{
+        if(e.streams&&e.streams[0]){
+            e.streams[0].getTracks().forEach(track=>{
+                if(!remoteStream.getTracks().some(t=>t.id===track.id))
+                    remoteStream.addTrack(track);
+            });
+        }
+
+        remoteVideo.srcObject=remoteStream;
+        remoteAudio.srcObject=remoteStream;
+
+        remoteVideo.play().catch(()=>{});
+        remoteAudio.play().catch(()=>{});
+    };
+
+    pc.onicecandidate=e=>{
+        if(e.candidate)
+            sendSignal("ice",e.candidate.toJSON()).catch(console.error);
+    };
+
+    pc.onconnectionstatechange=()=>{
+        const s=pc.connectionState;
+        console.log("Connection:",s);
+
+        if(s==="connected")
+            setState("Conectado");
+        else if(s==="connecting")
+            setState("Conectando...");
+        else if(s==="disconnected")
+            setState("Conexión perdida");
+        else if(s==="failed")
+            setState("Error de conexión");
+    };
+
+    if(IS_CALLER){
+        const offer=await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        await sendSignal("offer",{
+            type:offer.type,
+            sdp:offer.sdp
+        });
+
+        setState("Llamando...");
+    }
+
+    poll();
+}
+
+$("mic").onclick=()=>{
+    if(!localStream)return;
+
+    const track=localStream.getAudioTracks()[0];
+    if(!track)return;
+
+    track.enabled=!track.enabled;
+    $("mic").classList.toggle("off",!track.enabled);
+    $("mic").textContent=track.enabled?"🎙️":"🔇";
+};
+
+$("cam").onclick=()=>{
+    if(!localStream)return;
+
+    const track=localStream.getVideoTracks()[0];
+    if(!track)return;
+
+    track.enabled=!track.enabled;
+    $("cam").classList.toggle("off",!track.enabled);
+    $("cam").textContent=track.enabled?"📹":"🚫";
+};
+
+$("flip").onclick=async()=>{
+    if(!localStream||!pc)return;
+
+    const old=localStream.getVideoTracks()[0];
+    if(!old)return;
+
+    const newFacing=facingMode==="user"?"environment":"user";
+
+    try{
+        const stream=await navigator.mediaDevices.getUserMedia({
+            audio:false,
+            video:{facingMode:newFacing}
+        });
+
+        const track=stream.getVideoTracks()[0];
+        const sender=pc.getSenders().find(s=>s.track?.kind==="video");
+
+        if(sender)await sender.replaceTrack(track);
+
+        localStream.removeTrack(old);
+        old.stop();
+        localStream.addTrack(track);
+        localVideo.srcObject=localStream;
+        facingMode=newFacing;
+    }catch(e){
+        console.error("Flip:",e);
+    }
+};
+
+
+
+async function endCall(notify=true){
+    if(ended) return;
+    ended=true;
+
+    if(notify){
+        try{
+            await post(`/api/calls/${CALL_ID}/state/`,{estado:"FI"});
+        }catch(e){
+            console.error("Error finalizando llamada:",e);
+        }
+    }
+
+    try{
+        if(localStream){
+            localStream.getTracks().forEach(track=>track.stop());
+        }
+    }catch(e){}
+
+    try{
+        if(pc){
+            pc.close();
+        }
+    }catch(e){}
+
+    window.location.href=HOME_URL;
+}
+
+
+
+$("hang").onclick=endCall;
+
+window.addEventListener("beforeunload",()=>{
+    localStream?.getTracks().forEach(t=>t.stop());
+    pc?.close();
+});
+
+startCall().catch(e=>{
+    console.error(e);
+    setState("No se pudo iniciar la llamada");
+});
+</script>
+</body>
+</html>
