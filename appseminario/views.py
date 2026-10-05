@@ -3,6 +3,7 @@ import traceback
 from django.db.models import Q
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
+from django.views.decorators.cache import never_cache
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import User
 from django.views.decorators.csrf import csrf_exempt
@@ -60,19 +61,20 @@ def search_users_api(request):
 # 1. PANTALLAS PRINCIPALES (HTML Render)
 # ==========================================
 
+@never_cache
 def home(request):
-    if request.user.is_authenticated:
-        current_user = request.user
-    else:
-        current_user, _ = User.objects.get_or_create(username="invitado")
+    if not request.user.is_authenticated:
+        return redirect('onboard')
 
-    # 1. Obtener los contactos visibles marcados para el Home
+    current_user = request.user
+
+    # 1. Contactos visibles en el Home
     contacts = Contact.objects.filter(user=current_user, visible_in_home=True)
 
     contacts_data = []
     for c in contacts:
         display_name = c.name.strip() if (c.name and c.name.strip()) else f"Contacto {c.phone_number}"
-        
+
         contacts_data.append({
             'id': c.id,
             'is_group': False,
@@ -80,14 +82,14 @@ def home(request):
             'phone_number': c.phone_number,
         })
 
-    # 2. INTRODUCCIÓN CRÍTICA: Obtener las conversaciones grupales del usuario
+    # 2. Grupos del usuario
     groups = Conversation.objects.filter(is_group=True, participants=current_user)
     for g in groups:
         contacts_data.append({
-            'id': f"group-{g.id}", 
+            'id': f"group-{g.id}",
             'is_group': True,
             'name': g.name or "Grupo sin nombre",
-            'phone_number': f"Sala {g.id}", 
+            'phone_number': f"Sala {g.id}",
             'room_id': g.id
         })
 
@@ -406,8 +408,6 @@ def delete_message_api(request, message_id):
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     return JsonResponse({'status': 'error', 'message': 'Método no permitido.'}, status=405)
-
-
 @csrf_exempt
 @require_POST
 def save_contact_api(request):
@@ -418,7 +418,8 @@ def save_contact_api(request):
         data = json.loads(request.body)
         contact_id = data.get('contact_id')
         name = data.get('name', '').strip()
-        phone_number = data.get('phone_number', '').strip()
+        # Solo dígitos, para que coincida siempre con el username
+        phone_number = ''.join(filter(str.isdigit, data.get('phone_number', '')))
         public_key = data.get('public_key', '').strip()
 
         if not name or not phone_number:
@@ -426,20 +427,23 @@ def save_contact_api(request):
 
         associated_user = User.objects.filter(username=phone_number).first()
 
-        if associated_user and public_key:
-            profile, _ = UserProfile.objects.get_or_create(user=associated_user)
-            profile.pub_key = public_key
-            profile.save()
-
         if contact_id:
             contact_obj = get_object_or_404(Contact, id=contact_id, user=request.user)
             contact_obj.name = name
             contact_obj.phone_number = phone_number
             contact_obj.contact = associated_user
+            if public_key:
+                contact_obj.public_key = public_key
             contact_obj.save()
             message = 'Contacto actualizado con éxito.'
         else:
-            Contact.objects.create(user=request.user, contact=associated_user, name=name, phone_number=phone_number)
+            Contact.objects.create(
+                user=request.user,
+                contact=associated_user,
+                name=name,
+                phone_number=phone_number,
+                public_key=public_key,
+            )
             message = 'Contacto guardado correctamente.'
 
         return JsonResponse({'status': 'success', 'message': message})
@@ -568,7 +572,6 @@ def edit_group_api(request, group_id):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
-
 @csrf_exempt
 @require_POST
 def create_group_api(request):
@@ -580,10 +583,16 @@ def create_group_api(request):
         if not name:
             return JsonResponse({'status': 'error', 'message': 'El nombre del grupo es obligatorio.'}, status=400)
 
-        current_user = request.user if request.user.is_authenticated else User.objects.get_or_create(username="invitado")
+        # 1. Obtener usuario de la sesión o forzar el usuario "invitado" de forma segura sin fallar por autenticación
+        if hasattr(request, 'user') and request.user.is_authenticated:
+            current_user = request.user
+        else:
+            current_user, _ = User.objects.get_or_create(username="invitado")
 
+        # 2. Crear la conversación/grupo
         new_group = Conversation.objects.create(name=name, is_group=True, created_by=current_user)
         
+        # 3. Asignar participantes
         clean_phones = [''.join(filter(str.isdigit, str(phone))) for phone in member_phones if phone]
         users_to_add = User.objects.filter(username__in=clean_phones)
         
@@ -591,17 +600,40 @@ def create_group_api(request):
         new_group.participants.add(current_user)
 
         return JsonResponse({'status': 'success', 'message': 'Grupo creado exitosamente.'})
+
     except Exception as e:
+        # Imprimir en la consola de Vercel para depuración directa si ocurre otro problema
+        print(f"Error en create_group_api: {str(e)}")
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
 
 
 @csrf_exempt
 @require_POST
 def delete_group_api(request, group_id):
     try:
-        group = get_object_or_404(Conversation, id=group_id, is_group=True)
-        group.delete()
-        return JsonResponse({'status': 'success', 'message': 'Grupo eliminado correctamente.'})
+        if not request.user.is_authenticated:
+            return JsonResponse({'status': 'error', 'message': 'Sesión no válida.'}, status=401)
+
+        # Solo los miembros del grupo pueden operar sobre él
+        group = get_object_or_404(
+            Conversation,
+            id=group_id,
+            is_group=True,
+            participants=request.user
+        )
+
+        if group.created_by == request.user:
+            # El creador elimina el grupo para todos
+            group.delete()
+            message = 'Grupo eliminado correctamente.'
+        else:
+            # Un miembro común solo se sale del grupo
+            group.participants.remove(request.user)
+            message = 'Saliste del grupo.'
+
+        return JsonResponse({'status': 'success', 'message': message})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 

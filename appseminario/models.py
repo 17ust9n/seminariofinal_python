@@ -7,9 +7,10 @@ from django.dispatch import receiver
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
-    status_text = models.CharField(max_length=100, default="En línea", help_text="Texto corto de estado para #chSub")
-    is_online = models.BooleanField(default=False, help_text="Estado del indicador #dot")
-    pub_key = models.TextField(blank=True, null=True, help_text="Llave pública para cifrado P2P/MQTT")
+    status_text = models.CharField(max_length=100, default="En línea")
+    is_online = models.BooleanField(default=False)
+    pub_key = models.TextField(blank=True, default='')
+    security_level = models.IntegerField(default=0)  # 0: Normal, 1: Modo Blindado
 
     def __str__(self):
         return f"Perfil de {self.user.username}"
@@ -27,6 +28,7 @@ class Contact(models.Model):
     )
     name = models.CharField(max_length=100, help_text="Nombre local asignado por el usuario (#cName)")
     phone_number = models.CharField(max_length=20, help_text="Número con código de país (#cNum)")
+    public_key = models.TextField(blank=True, default='')
     
     # Campo para ocultar de Home sin borrar el contacto ni las conversaciones
     visible_in_home = models.BooleanField(default=True)
@@ -104,18 +106,6 @@ class Llamada(models.Model):
 
 
 @receiver(post_save, sender=User)
-def create_or_update_user_profile(sender, instance, created, **kwargs):
+def create_user_profile(sender, instance, created, **kwargs):
     if created:
-        UserProfile.objects.create(user=instance)
-    else:
-        if hasattr(instance, 'profile'):
-            instance.profile.save()
-
-
-class UserProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    pub_key = models.TextField(blank=True, default='')
-    security_level = models.IntegerField(default=0)  # 0: Normal, 1: Modo Blindado
-
-    def __str__(self):
-        return f"Perfil de {self.user.username}"
+        UserProfile.objects.get_or_create(user=instance)

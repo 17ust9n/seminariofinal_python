@@ -30,3 +30,4 @@ env/
 # Firebase Credentials
 firebase-key.json
 *.json
+.vercel
