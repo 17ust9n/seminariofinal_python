@@ -1,0 +1,14 @@
+{
+  "builds": [
+    {
+      "src": "infoseminario/wsgi.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "infoseminario/wsgi.py"
+    }
+  ]
+}
